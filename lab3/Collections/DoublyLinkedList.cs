@@ -25,7 +25,7 @@ public class DoublyLinkedList<T> : IList<T>
         get
         {
             if (index < 0 || index >= _count)
-                throw new ArgumentOutOfRangeException(nameof(index), "индекс вне диапазона");
+                throw new Exception("индекс вне диапазона");
 
             Node? node = GetNodeAt(index);
             return node!.Value;
@@ -33,7 +33,7 @@ public class DoublyLinkedList<T> : IList<T>
         set
         {
             if (index < 0 || index >= _count)
-                throw new ArgumentOutOfRangeException(nameof(index), "индекс вне диапазона");
+                throw new Exception("индекс вне диапазона");
 
             Node? node = GetNodeAt(index);
             node!.Value = value;
@@ -78,11 +78,11 @@ public class DoublyLinkedList<T> : IList<T>
     public void CopyTo(T[] array, int arrayIndex)
     {
         if (array == null)
-            throw new ArgumentNullException(nameof(array));
+            throw new Exception("массив не может быть null");
         if (arrayIndex < 0)
-            throw new ArgumentOutOfRangeException(nameof(arrayIndex), "индекс не может быть отрицательным");
+            throw new Exception("индекс не может быть отрицательным");
         if (array.Length - arrayIndex < _count)
-            throw new ArgumentException("недостаточно места в массиве");
+            throw new Exception("недостаточно места в массиве");
 
         Node? current = _head;
         int index = arrayIndex;
@@ -128,7 +128,7 @@ public class DoublyLinkedList<T> : IList<T>
     public void Insert(int index, T item)
     {
         if (index < 0 || index > _count)
-            throw new ArgumentOutOfRangeException(nameof(index), "индекс вне диапазона");
+            throw new Exception("индекс вне диапазона");
 
         Node newNode = new Node(item);
 
@@ -184,7 +184,7 @@ public class DoublyLinkedList<T> : IList<T>
     public void RemoveAt(int index)
     {
         if (index < 0 || index >= _count)
-            throw new ArgumentOutOfRangeException(nameof(index), "индекс вне диапазона");
+            throw new Exception("индекс вне диапазона");
 
         Node? node = GetNodeAt(index);
         RemoveNode(node!);

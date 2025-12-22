@@ -17,7 +17,7 @@ public class SimpleList<T> : IList<T>, ICollection<T>, IEnumerable<T>
     public SimpleList(int capacity)
     {
         if (capacity < 0)
-            throw new ArgumentOutOfRangeException(nameof(capacity), "емкость не может быть отрицательной");
+            throw new Exception("емкость не может быть отрицательной");
         _items = new T[capacity];
         _count = 0;
     }
@@ -27,13 +27,13 @@ public class SimpleList<T> : IList<T>, ICollection<T>, IEnumerable<T>
         get
         {
             if (index < 0 || index >= _count)
-                throw new ArgumentOutOfRangeException(nameof(index), "индекс вне диапазона");
+                throw new Exception("индекс вне диапазона");
             return _items[index];
         }
         set
         {
             if (index < 0 || index >= _count)
-                throw new ArgumentOutOfRangeException(nameof(index), "индекс вне диапазона");
+                throw new Exception("индекс вне диапазона");
             _items[index] = value;
         }
     }
@@ -66,11 +66,11 @@ public class SimpleList<T> : IList<T>, ICollection<T>, IEnumerable<T>
     public void CopyTo(T[] array, int arrayIndex)
     {
         if (array == null)
-            throw new ArgumentNullException(nameof(array));
+            throw new Exception("массив не может быть null");
         if (arrayIndex < 0)
-            throw new ArgumentOutOfRangeException(nameof(arrayIndex), "индекс не может быть отрицательным");
+            throw new Exception("индекс не может быть отрицательным");
         if (array.Length - arrayIndex < _count)
-            throw new ArgumentException("недостаточно места в массиве");
+            throw new Exception("недостаточно места в массиве");
 
         Array.Copy(_items, 0, array, arrayIndex, _count);
     }
@@ -101,7 +101,7 @@ public class SimpleList<T> : IList<T>, ICollection<T>, IEnumerable<T>
     public void Insert(int index, T item)
     {
         if (index < 0 || index > _count)
-            throw new ArgumentOutOfRangeException(nameof(index), "индекс вне диапазона");
+            throw new Exception("индекс вне диапазона");
 
         if (_count >= _items.Length)
         {
@@ -131,7 +131,7 @@ public class SimpleList<T> : IList<T>, ICollection<T>, IEnumerable<T>
     public void RemoveAt(int index)
     {
         if (index < 0 || index >= _count)
-            throw new ArgumentOutOfRangeException(nameof(index), "индекс вне диапазона");
+            throw new Exception("индекс вне диапазона");
 
         _count--;
         if (index < _count)

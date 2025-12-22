@@ -40,7 +40,7 @@ public class SimpleDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadOn
         {
             if (TryGetValue(key, out TValue? value))
                 return value;
-            throw new KeyNotFoundException($"ключ '{key}' не найден");
+            throw new Exception($"ключ '{key}' не найден");
         }
         set
         {
@@ -91,7 +91,7 @@ public class SimpleDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadOn
     public void Add(TKey key, TValue value)
     {
         if (!Insert(key, value, true))
-            throw new ArgumentException($"элемент с ключом '{key}' уже существует");
+            throw new Exception($"элемент с ключом '{key}' уже существует");
     }
 
     public void Add(KeyValuePair<TKey, TValue> item)
@@ -129,11 +129,11 @@ public class SimpleDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadOn
     public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
     {
         if (array == null)
-            throw new ArgumentNullException(nameof(array));
+            throw new Exception("массив не может быть null");
         if (arrayIndex < 0)
-            throw new ArgumentOutOfRangeException(nameof(arrayIndex), "индекс не может быть отрицательным");
+            throw new Exception("индекс не может быть отрицательным");
         if (array.Length - arrayIndex < Count)
-            throw new ArgumentException("недостаточно места в массиве");
+            throw new Exception("недостаточно места в массиве");
 
         int index = arrayIndex;
         foreach (var entry in this)
@@ -161,7 +161,7 @@ public class SimpleDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadOn
     public bool Remove(TKey key)
     {
         if (key == null)
-            throw new ArgumentNullException(nameof(key));
+            throw new Exception("ключ не может быть null");
 
         int hashCode = key.GetHashCode() & 0x7FFFFFFF;
         int bucket = hashCode % _buckets.Length;
@@ -205,7 +205,7 @@ public class SimpleDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadOn
     public bool TryGetValue(TKey key, out TValue value)
     {
         if (key == null)
-            throw new ArgumentNullException(nameof(key));
+            throw new Exception("ключ не может быть null");
 
         int hashCode = key.GetHashCode() & 0x7FFFFFFF;
         int bucket = hashCode % _buckets.Length;
@@ -226,7 +226,7 @@ public class SimpleDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadOn
     private bool Insert(TKey key, TValue value, bool add)
     {
         if (key == null)
-            throw new ArgumentNullException(nameof(key));
+            throw new Exception("ключ не может быть null");
 
         int hashCode = key.GetHashCode() & 0x7FFFFFFF;
         int targetBucket = hashCode % _buckets.Length;
