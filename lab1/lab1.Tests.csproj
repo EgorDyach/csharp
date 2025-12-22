@@ -27,8 +27,13 @@
 
   <ItemGroup>
     <Compile Remove="Program.cs" />
-    <Compile Remove="Services/**" />
-    <Compile Remove="Models/**" />
+    <Compile Remove="Services\**" />
+    <Compile Remove="Models\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Services\**" />
+    <None Remove="Models\**" />
   </ItemGroup>
 
 </Project>
