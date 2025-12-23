@@ -93,6 +93,7 @@ public class DiningPhilosophers
 
             lock (_forks[firstFork])
             {
+                Thread.Sleep(10);
                 lock (_forks[secondFork])
                 {
                     Eat(id);
