@@ -153,34 +153,21 @@ public class FileResourceManager : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (!_disposed)
+        if (_disposed)
+            return;
+
+        if (disposing)
         {
-            if (disposing)
-            {
-                lock (_lockObject)
-                {
-                    using (_writer)
-                    {
-                        _writer?.Dispose();
-                    }
-                    _writer = null;
-
-                    using (_reader)
-                    {
-                        _reader?.Dispose();
-                    }
-                    _reader = null;
-
-                    using (_fileStream)
-                    {
-                        _fileStream?.Dispose();
-                    }
-                    _fileStream = null;
-                }
-            }
-
-            _disposed = true;
+            _writer?.Dispose();
+            _reader?.Dispose();
+            _fileStream?.Dispose();
+            
+            _writer = null;
+            _reader = null;
+            _fileStream = null;
         }
+
+        _disposed = true;
     }
 
     ~FileResourceManager()
