@@ -1,88 +1,75 @@
-ОТЧЕТ О ПРОИЗВОДИТЕЛЬНОСТИ КОЛЛЕКЦИЙ
+# ОТЧЕТ О ПРОИЗВОДИТЕЛЬНОСТИ КОЛЛЕКЦИЙ
 
-## List:
+## List
 
-## Операция Среднее (мс) Мин (мс) Макс (мс)
+| Операция         | Среднее (мс) | Мин (мс) | Макс (мс) |
+| ---------------- | ------------ | -------- | --------- |
+| AddToEnd         | 0            | 0        | 0         |
+| AddToMiddle      | 0            | 0        | 0         |
+| AddToStart       | 0            | 0        | 0         |
+| FindByValue      | 26           | 25       | 33        |
+| GetByIndex       | 0            | 0        | 0         |
+| RemoveFromEnd    | 0            | 0        | 0         |
+| RemoveFromMiddle | 0            | 0        | 0         |
+| RemoveFromStart  | 0            | 0        | 0         |
 
-AddToEnd 0 0 0  
-AddToMiddle 0 0 0  
-AddToStart 0 0 0  
-FindByValue 26 25 33  
-GetByIndex 0 0 0  
-RemoveFromEnd 0 0 0  
-RemoveFromMiddle 0 0 0  
-RemoveFromStart 0 0 0
+## LinkedList
 
-## LinkedList:
+| Операция         | Среднее (мс) | Мин (мс) | Макс (мс) |
+| ---------------- | ------------ | -------- | --------- |
+| AddToEnd         | 0            | 0        | 0         |
+| AddToMiddle      | 0            | 0        | 1         |
+| AddToStart       | 0            | 0        | 0         |
+| FindByValue      | 301          | 260      | 358       |
+| RemoveFromEnd    | 0            | 0        | 0         |
+| RemoveFromMiddle | 0            | 0        | 1         |
+| RemoveFromStart  | 0            | 0        | 0         |
 
-## Операция Среднее (мс) Мин (мс) Макс (мс)
+## Queue
 
-AddToEnd 0 0 0  
-AddToMiddle 0 0 1  
-AddToStart 0 0 0  
-FindByValue 301 260 358  
-RemoveFromEnd 0 0 0  
-RemoveFromMiddle 0 0 1  
-RemoveFromStart 0 0 0
+| Операция        | Среднее (мс) | Мин (мс) | Макс (мс) |
+| --------------- | ------------ | -------- | --------- |
+| AddToEnd        | 0            | 0        | 2         |
+| FindByValue     | 27           | 25       | 36        |
+| RemoveFromStart | 0            | 0        | 0         |
 
-## Queue:
+## Stack
 
-## Операция Среднее (мс) Мин (мс) Макс (мс)
+| Операция      | Среднее (мс) | Мин (мс) | Макс (мс) |
+| ------------- | ------------ | -------- | --------- |
+| AddToEnd      | 0            | 0        | 0         |
+| FindByValue   | 40           | 28       | 112       |
+| RemoveFromEnd | 0            | 0        | 0         |
 
-AddToEnd 0 0 2  
-FindByValue 27 25 36  
-RemoveFromStart 0 0 0
+## ImmutableList
 
-## Stack:
+| Операция         | Среднее (мс) | Мин (мс) | Макс (мс) |
+| ---------------- | ------------ | -------- | --------- |
+| AddToEnd         | 0            | 0        | 0         |
+| AddToMiddle      | 0            | 0        | 3         |
+| AddToStart       | 0            | 0        | 0         |
+| FindByValue      | 654          | 615      | 796       |
+| GetByIndex       | 0            | 0        | 1         |
+| RemoveFromEnd    | 0            | 0        | 0         |
+| RemoveFromMiddle | 0            | 0        | 0         |
+| RemoveFromStart  | 0            | 0        | 0         |
 
-## Операция Среднее (мс) Мин (мс) Макс (мс)
+# АНАЛИЗ И ВЫВОДЫ
 
-AddToEnd 0 0 0  
-FindByValue 40 28 112  
-RemoveFromEnd 0 0 0
+## Сравнение операций
 
-## ImmutableList:
+| Операция         | Самый быстрый | Самый медленный        | Разница |
+| ---------------- | ------------- | ---------------------- | ------- |
+| AddToEnd         | List (0 мс)   | -                      | -       |
+| AddToStart       | List (0 мс)   | -                      | -       |
+| AddToMiddle      | List (0 мс)   | -                      | -       |
+| RemoveFromStart  | List (0 мс)   | -                      | -       |
+| RemoveFromEnd    | List (0 мс)   | -                      | -       |
+| RemoveFromMiddle | List (0 мс)   | -                      | -       |
+| FindByValue      | List (26 мс)  | ImmutableList (654 мс) | 25.15x  |
+| GetByIndex       | List (0 мс)   | -                      | -       |
 
-## Операция Среднее (мс) Мин (мс) Макс (мс)
-
-AddToEnd 0 0 0  
-AddToMiddle 0 0 3  
-AddToStart 0 0 0  
-FindByValue 654 615 796  
-GetByIndex 0 0 1  
-RemoveFromEnd 0 0 0  
-RemoveFromMiddle 0 0 0  
-RemoveFromStart 0 0 0
-
-АНАЛИЗ И ВЫВОДЫ
-
-AddToEnd:
-Самый быстрый: List (0 мс)
-
-AddToStart:
-Самый быстрый: List (0 мс)
-
-AddToMiddle:
-Самый быстрый: List (0 мс)
-
-RemoveFromStart:
-Самый быстрый: List (0 мс)
-
-RemoveFromEnd:
-Самый быстрый: List (0 мс)
-
-RemoveFromMiddle:
-Самый быстрый: List (0 мс)
-
-FindByValue:
-Самый быстрый: List (26 мс)
-Самый медленный: ImmutableList (654 мс)
-Разница: 25,15x
-
-GetByIndex:
-Самый быстрый: List (0 мс)
-
-ОБЩИЕ ВЫВОДЫ:
+## ОБЩИЕ ВЫВОДЫ
 
 1. List<T> эффективен для добавления в конец и доступа по индексу.
 2. LinkedList<T> эффективен для добавления/удаления в начале и конце.
