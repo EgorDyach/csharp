@@ -29,9 +29,9 @@ public class Person
     public string Id { get; set; } = string.Empty;
 
     [JsonInclude]
-    private DateTime _birthDate;
+    private DateTime? _birthDate;
 
-    public DateTime BirthDate
+    public DateTime? BirthDate
     {
         get => _birthDate;
         set => _birthDate = value;
@@ -61,7 +61,7 @@ public class Person
         Email = email;
         Password = password;
         Id = id;
-        _birthDate = birthDate ?? DateTime.MinValue;
+        _birthDate = birthDate;
         PhoneNumber = phoneNumber;
     }
 

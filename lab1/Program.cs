@@ -13,7 +13,7 @@ class Program
         
         Console.WriteLine($"Имя: {person.FirstName} {person.LastName}");
         Console.WriteLine($"ID: {person.Id}");
-        Console.WriteLine($"Дата рождения: {person.BirthDate:yyyy-MM-dd}");
+        Console.WriteLine($"Дата рождения: {(person.BirthDate.HasValue ? person.BirthDate.Value.ToString("yyyy-MM-dd") : "не указана")}");
         Console.WriteLine($"Телефон: {person.PhoneNumber}");
         
         var json = serializer.SerializeToJson(person);

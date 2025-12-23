@@ -1,14 +1,33 @@
+using System;
+using System.IO;
 using lab1.Models;
 using lab1.Services;
 using Xunit;
 
 namespace lab1.Tests;
 
-public class PersonSerializerTests
+public class PersonSerializerTests : IDisposable
 {
     private readonly PersonSerializer _serializer = new();
-    private readonly string _testFilePath = "test_person.json";
-    private readonly string _testListFilePath = "test_people.json";
+    private readonly string _testDirectory;
+    private readonly string _testFilePath;
+    private readonly string _testListFilePath;
+
+    public PersonSerializerTests()
+    {
+        _testDirectory = Path.Combine(Path.GetTempPath(), "lab1_tests", Guid.NewGuid().ToString());
+        Directory.CreateDirectory(_testDirectory);
+        _testFilePath = Path.Combine(_testDirectory, "test_person.json");
+        _testListFilePath = Path.Combine(_testDirectory, "test_people.json");
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_testDirectory))
+        {
+            Directory.Delete(_testDirectory, true);
+        }
+    }
 
     [Fact]
     public void SerializeToJson_ShouldReturnValidJson()
