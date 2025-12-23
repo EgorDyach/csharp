@@ -4,11 +4,11 @@ namespace lab2.Performance;
 
 public static class ListPerformance
 {
-    private const int InitialSize = 100_000;
+    private const int InitialSize = 600_000;
 
     private static PerformanceResult MeasureOperation(string operationName, Func<List<int>> prepareCollection, Action<List<int>> operation)
     {
-        const int iterations = 5;
+        const int iterations = 15;
         var times = new List<long>();
 
         for (int i = 0; i < iterations; i++)

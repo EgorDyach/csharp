@@ -5,11 +5,11 @@ namespace lab2.Performance;
 
 public static class ImmutableListPerformance
 {
-    private const int InitialSize = 100_000;
+    private const int InitialSize = 600_000;
 
     private static PerformanceResult MeasureOperation(string operationName, Func<ImmutableList<int>> prepareCollection, Func<ImmutableList<int>, ImmutableList<int>> operation)
     {
-        const int iterations = 5;
+        const int iterations = 15;
         var times = new List<long>();
 
         for (int i = 0; i < iterations; i++)
@@ -35,7 +35,7 @@ public static class ImmutableListPerformance
 
     private static PerformanceResult MeasureReadOperation(string operationName, Func<ImmutableList<int>> prepareCollection, Action<ImmutableList<int>> operation)
     {
-        const int iterations = 5;
+        const int iterations = 15;
         var times = new List<long>();
 
         for (int i = 0; i < iterations; i++)
