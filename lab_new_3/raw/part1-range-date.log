@@ -1,0 +1,149 @@
+Timing is on.
+CREATE SCHEMA
+Time: 0.182 ms
+psql:/tmp/p1.sql:10: NOTICE:  schema "lab3" already exists, skipping
+SET
+Time: 0.087 ms
+DROP TABLE
+Time: 34.912 ms
+### 1.1 Создание партиционированной таблицы
+CREATE TABLE
+Time: 5.120 ms
+CREATE TABLE
+Time: 3.578 ms
+CREATE TABLE
+Time: 13.252 ms
+CREATE TABLE
+Time: 2.916 ms
+### 1.2 Как это выглядит в каталоге
+  partition_name   |                               bounds                               
+-------------------+--------------------------------------------------------------------
+ events_2026_09_09 | FOR VALUES FROM ('2026-09-09 00:00:00') TO ('2026-09-10 00:00:00')
+ events_2026_09_10 | FOR VALUES FROM ('2026-09-10 00:00:00') TO ('2026-09-11 00:00:00')
+ events_2026_09_11 | FOR VALUES FROM ('2026-09-11 00:00:00') TO ('2026-09-12 00:00:00')
+(3 rows)
+
+Time: 1.412 ms
+### 1.3 Загрузка тестовых данных: по 1 000 000 событий на каждый день
+INSERT 0 3000000
+Time: 2337.630 ms (00:02.338)
+ANALYZE
+Time: 330.877 ms
+### 1.4 Проверка распределения по партициям (tableoid::regclass)
+  partition_name   |  count  
+-------------------+---------
+ events_2026_09_09 | 1000675
+ events_2026_09_10 | 1000386
+ events_2026_09_11 |  998939
+(3 rows)
+
+Time: 94.340 ms
+### 1.5 Задание: в какую партицию попадёт конкретная запись?
+INSERT 0 1
+Time: 1.968 ms
+INSERT 0 1
+Time: 0.504 ms
+INSERT 0 1
+Time: 0.293 ms
+    id     |         created_at         |     landed_in     
+-----------+----------------------------+-------------------
+ 900000001 | 2026-09-10 12:00:00        | events_2026_09_10
+ 900000002 | 2026-09-11 00:00:00        | events_2026_09_11
+ 900000003 | 2026-09-10 23:59:59.999999 | events_2026_09_10
+(3 rows)
+
+Time: 58.135 ms
+### 1.6 Вопрос 3: что будет при вставке за 2026-09-12 (партиции нет)?
+Time: 0.175 ms
+### 1.7 Размеры партиций
+psql:/tmp/p1.sql:75: ERROR:  no partition of relation "events" found for row
+DETAIL:  Partition key of the failing row contains (created_at) = (2026-09-12 10:00:00).
+      relname      | total_size 
+-------------------+------------
+ events_2026_09_09 | 74 MB
+ events_2026_09_10 | 74 MB
+ events_2026_09_11 | 74 MB
+(3 rows)
+
+Time: 1.554 ms
+### 2.1 Запрос ПО ключу партиционирования: pruning должен сработать
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=17775.49..17775.50 rows=1 width=8) (actual time=38.006..41.513 rows=1 loops=1)
+   Buffers: shared hit=5372 read=4109 written=96
+   ->  Gather  (cost=17775.27..17775.48 rows=2 width=8) (actual time=37.932..41.509 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=5372 read=4109 written=96
+         ->  Partial Aggregate  (cost=16775.27..16775.28 rows=1 width=8) (actual time=31.982..31.982 rows=1 loops=3)
+               Buffers: shared hit=5372 read=4109 written=96
+               ->  Parallel Seq Scan on events_2026_09_10 events  (cost=0.00..15733.41 rows=416744 width=0) (actual time=0.028..23.178 rows=333463 loops=3)
+                     Filter: ((created_at >= '2026-09-10 00:00:00'::timestamp without time zone) AND (created_at < '2026-09-11 00:00:00'::timestamp without time zone))
+                     Buffers: shared hit=5372 read=4109 written=96
+ Planning:
+   Buffers: shared hit=18 read=1 written=1
+ Planning Time: 0.078 ms
+ Execution Time: 41.530 ms
+(15 rows)
+
+Time: 42.287 ms
+### 2.2 Запрос НЕ по ключу партиционирования: pruning невозможен
+                                                                            QUERY PLAN                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=46925.57..46925.58 rows=1 width=8) (actual time=69.191..73.688 rows=1 loops=1)
+   Buffers: shared hit=16146 read=12288 written=106
+   ->  Gather  (cost=46925.36..46925.57 rows=2 width=8) (actual time=69.119..73.685 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=16146 read=12288 written=106
+         ->  Partial Aggregate  (cost=45925.36..45925.37 rows=1 width=8) (actual time=62.486..62.487 rows=1 loops=3)
+               Buffers: shared hit=16146 read=12288 written=106
+               ->  Parallel Append  (cost=0.00..45303.24 rows=248848 width=0) (actual time=0.037..56.923 rows=200162 loops=3)
+                     Buffers: shared hit=16146 read=12288 written=106
+                     ->  Parallel Seq Scan on events_2026_09_09 events_1  (cost=0.00..14696.85 rows=82848 width=0) (actual time=0.020..16.084 rows=66721 loops=3)
+                           Filter: ((event_type)::text = 'click'::text)
+                           Rows Removed by Filter: 266837
+                           Buffers: shared hit=5339 read=4146 written=42
+                     ->  Parallel Seq Scan on events_2026_09_10 events_2  (cost=0.00..14691.34 rows=83102 width=0) (actual time=0.021..23.900 rows=100028 loops=2)
+                           Filter: ((event_type)::text = 'click'::text)
+                           Rows Removed by Filter: 400166
+                           Buffers: shared hit=5468 read=4013 written=32
+                     ->  Parallel Seq Scan on events_2026_09_11 events_3  (cost=0.00..14670.81 rows=82898 width=0) (actual time=0.017..49.814 rows=200268 loops=1)
+                           Filter: ((event_type)::text = 'click'::text)
+                           Rows Removed by Filter: 798672
+                           Buffers: shared hit=5339 read=4129 written=32
+ Planning Time: 0.038 ms
+ Execution Time: 73.704 ms
+(24 rows)
+
+Time: 73.982 ms
+### 2.3 Тот же запрос по ключу, но со значением, вычисляемым в runtime
+PREPARE
+Time: 0.094 ms
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=17775.49..17775.50 rows=1 width=8) (actual time=39.063..42.496 rows=1 loops=1)
+   Buffers: shared hit=5471 read=4010 written=18
+   ->  Gather  (cost=17775.27..17775.48 rows=2 width=8) (actual time=39.011..42.492 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=5471 read=4010 written=18
+         ->  Partial Aggregate  (cost=16775.27..16775.28 rows=1 width=8) (actual time=33.088..33.089 rows=1 loops=3)
+               Buffers: shared hit=5471 read=4010 written=18
+               ->  Parallel Seq Scan on events_2026_09_10 events  (cost=0.00..15733.41 rows=416744 width=0) (actual time=0.033..23.590 rows=333463 loops=3)
+                     Filter: ((created_at >= '2026-09-10 00:00:00'::timestamp without time zone) AND (created_at < '2026-09-11 00:00:00'::timestamp without time zone))
+                     Buffers: shared hit=5471 read=4010 written=18
+ Planning Time: 0.068 ms
+ Execution Time: 42.506 ms
+(13 rows)
+
+Time: 42.789 ms
+### 2.4 Сколько партиций реально существует и сколько прочитано
+      relname      | seq_scan | seq_tup_read 
+-------------------+----------+--------------
+ events_2026_09_09 |        6 |      2879491
+ events_2026_09_10 |       10 |      3760427
+ events_2026_09_11 |        6 |            0
+(3 rows)
+
+Time: 8.711 ms

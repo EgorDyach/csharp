@@ -1,0 +1,24 @@
+Timing is on.
+SET
+Time: 0.087 ms
+psql:<stdin>:21: NOTICE:  relation "partition_alert_state" already exists, skipping
+CREATE TABLE
+Time: 0.300 ms
+COMMENT
+Time: 0.783 ms
+COMMENT
+Time: 0.232 ms
+COMMENT
+Time: 0.213 ms
+CREATE VIEW
+Time: 2.452 ms
+    parent_table    | partitions |  total  
+--------------------+------------+---------
+ customers          |          5 | 96 MB
+ events             |          3 | 364 MB
+ orders_partitioned |         25 | 1044 MB
+ products           |          3 | 17 MB
+ user_events        |          4 | 241 MB
+(5 rows)
+
+Time: 5.981 ms

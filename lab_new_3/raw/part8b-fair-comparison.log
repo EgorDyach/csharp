@@ -1,0 +1,673 @@
+Timing is on.
+SET
+Time: 0.125 ms
+SET
+Time: 0.123 ms
+=== A. Статистика за месяц: ОБЫЧНАЯ таблица (3 прогона) ===
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=77203.53..82229.73 rows=202914 width=48) (actual time=3455.768..3455.979 rows=31 loops=1)
+   Group Key: date_trunc('day'::text, created_at)
+   Planned Partitions: 8  Batches: 1  Memory Usage: 801kB
+   Buffers: shared read=54385 written=5253
+   ->  Bitmap Heap Scan on orders  (cost=5537.25..63690.88 rows=203007 width=14) (actual time=138.774..3405.115 rows=208061 loops=1)
+         Recheck Cond: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+         Heap Blocks: exact=53499
+         Buffers: shared read=54385 written=5253
+         ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..5486.50 rows=203007 width=0) (actual time=130.315..130.316 rows=208061 loops=1)
+               Index Cond: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared read=886
+ Planning:
+   Buffers: shared hit=133 read=22
+ Planning Time: 0.996 ms
+ Execution Time: 3456.588 ms
+(15 rows)
+
+Time: 3459.650 ms (00:03.460)
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=77203.53..82229.73 rows=202914 width=48) (actual time=731.587..731.702 rows=31 loops=1)
+   Group Key: date_trunc('day'::text, created_at)
+   Planned Partitions: 8  Batches: 1  Memory Usage: 801kB
+   Buffers: shared read=54385
+   ->  Bitmap Heap Scan on orders  (cost=5537.25..63690.88 rows=203007 width=14) (actual time=20.463..704.490 rows=208061 loops=1)
+         Recheck Cond: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+         Heap Blocks: exact=53499
+         Buffers: shared read=54385
+         ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..5486.50 rows=203007 width=0) (actual time=16.319..16.319 rows=208061 loops=1)
+               Index Cond: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared read=886
+ Planning Time: 0.176 ms
+ Execution Time: 732.106 ms
+(13 rows)
+
+Time: 732.702 ms
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=77203.53..82229.73 rows=202914 width=48) (actual time=544.394..544.461 rows=31 loops=1)
+   Group Key: date_trunc('day'::text, created_at)
+   Planned Partitions: 8  Batches: 1  Memory Usage: 801kB
+   Buffers: shared read=54385
+   ->  Bitmap Heap Scan on orders  (cost=5537.25..63690.88 rows=203007 width=14) (actual time=17.699..523.113 rows=208061 loops=1)
+         Recheck Cond: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+         Heap Blocks: exact=53499
+         Buffers: shared read=54385
+         ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..5486.50 rows=203007 width=0) (actual time=13.723..13.723 rows=208061 loops=1)
+               Index Cond: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared read=886
+ Planning Time: 0.074 ms
+ Execution Time: 544.866 ms
+(13 rows)
+
+Time: 545.207 ms
+=== B. Статистика за месяц: ПАРТИЦИОНИРОВАННАЯ (3 прогона) ===
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=19763.13..24848.24 rows=203551 width=48) (actual time=36.155..36.226 rows=31 loops=1)
+   Group Key: date_trunc('day'::text, orders_partitioned.created_at)
+   Planned Partitions: 8  Batches: 1  Memory Usage: 801kB
+   Buffers: shared read=2273
+   ->  Seq Scan on orders_p_2026_07 orders_partitioned  (cost=0.00..5914.07 rows=208061 width=14) (actual time=0.015..22.886 rows=208061 loops=1)
+         Filter: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+         Buffers: shared read=2273
+ Planning:
+   Buffers: shared hit=203 read=65
+ Planning Time: 4.703 ms
+ Execution Time: 36.386 ms
+(11 rows)
+
+Time: 46.229 ms
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=19763.13..24848.24 rows=203551 width=48) (actual time=31.240..31.305 rows=31 loops=1)
+   Group Key: date_trunc('day'::text, orders_partitioned.created_at)
+   Planned Partitions: 8  Batches: 1  Memory Usage: 801kB
+   Buffers: shared hit=2273
+   ->  Seq Scan on orders_p_2026_07 orders_partitioned  (cost=0.00..5914.07 rows=208061 width=14) (actual time=0.003..18.148 rows=208061 loops=1)
+         Filter: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+         Buffers: shared hit=2273
+ Planning:
+   Buffers: shared hit=8
+ Planning Time: 0.096 ms
+ Execution Time: 31.518 ms
+(11 rows)
+
+Time: 31.769 ms
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=19763.13..24848.24 rows=203551 width=48) (actual time=30.971..31.042 rows=31 loops=1)
+   Group Key: date_trunc('day'::text, orders_partitioned.created_at)
+   Planned Partitions: 8  Batches: 1  Memory Usage: 801kB
+   Buffers: shared hit=2273
+   ->  Seq Scan on orders_p_2026_07 orders_partitioned  (cost=0.00..5914.07 rows=208061 width=14) (actual time=0.002..17.832 rows=208061 loops=1)
+         Filter: ((created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-08-01 00:00:00+00'::timestamp with time zone))
+         Buffers: shared hit=2273
+ Planning:
+   Buffers: shared hit=8
+ Planning Time: 0.066 ms
+ Execution Time: 31.271 ms
+(11 rows)
+
+Time: 31.453 ms
+=== C. Годовая аналитика: ОБЫЧНАЯ таблица (3 прогона) ===
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=92074.54..92074.55 rows=1 width=40) (actual time=169.968..173.976 rows=1 loops=1)
+   Buffers: shared hit=13882 read=40719
+   ->  Gather  (cost=92074.32..92074.53 rows=2 width=40) (actual time=169.874..173.969 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=13882 read=40719
+         ->  Partial Aggregate  (cost=91074.32..91074.33 rows=1 width=40) (actual time=164.728..164.729 rows=1 loops=3)
+               Buffers: shared hit=13882 read=40719
+               ->  Parallel Seq Scan on orders  (cost=0.00..85853.52 rows=1044159 width=6) (actual time=0.014..128.458 rows=833879 loops=3)
+                     Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                     Rows Removed by Filter: 832789
+                     Buffers: shared hit=13882 read=40719
+ Planning Time: 0.058 ms
+ Execution Time: 174.597 ms
+(14 rows)
+
+Time: 174.826 ms
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=92074.54..92074.55 rows=1 width=40) (actual time=140.169..142.026 rows=1 loops=1)
+   Buffers: shared hit=13908 read=40693
+   ->  Gather  (cost=92074.32..92074.53 rows=2 width=40) (actual time=140.099..142.021 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=13908 read=40693
+         ->  Partial Aggregate  (cost=91074.32..91074.33 rows=1 width=40) (actual time=139.032..139.032 rows=1 loops=3)
+               Buffers: shared hit=13908 read=40693
+               ->  Parallel Seq Scan on orders  (cost=0.00..85853.52 rows=1044159 width=6) (actual time=0.057..105.663 rows=833879 loops=3)
+                     Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                     Rows Removed by Filter: 832789
+                     Buffers: shared hit=13908 read=40693
+ Planning Time: 0.059 ms
+ Execution Time: 142.045 ms
+(14 rows)
+
+Time: 142.266 ms
+                                                                               QUERY PLAN                                                                               
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=92074.54..92074.55 rows=1 width=40) (actual time=120.257..121.947 rows=1 loops=1)
+   Buffers: shared hit=13914 read=40687
+   ->  Gather  (cost=92074.32..92074.53 rows=2 width=40) (actual time=120.193..121.940 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=13914 read=40687
+         ->  Partial Aggregate  (cost=91074.32..91074.33 rows=1 width=40) (actual time=119.158..119.159 rows=1 loops=3)
+               Buffers: shared hit=13914 read=40687
+               ->  Parallel Seq Scan on orders  (cost=0.00..85853.52 rows=1044159 width=6) (actual time=0.056..86.093 rows=833879 loops=3)
+                     Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                     Rows Removed by Filter: 832789
+                     Buffers: shared hit=13914 read=40687
+ Planning Time: 0.076 ms
+ Execution Time: 121.976 ms
+(14 rows)
+
+Time: 122.219 ms
+=== D. Годовая аналитика: ПАРТИЦИОНИРОВАННАЯ (3 прогона) ===
+                                                                                  QUERY PLAN                                                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=60820.97..60820.98 rows=1 width=40) (actual time=164.592..166.461 rows=1 loops=1)
+   Buffers: shared read=27324
+   ->  Gather  (cost=60820.74..60820.95 rows=2 width=40) (actual time=164.512..166.454 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared read=27324
+         ->  Partial Aggregate  (cost=59820.74..59820.75 rows=1 width=40) (actual time=162.896..162.899 rows=1 loops=3)
+               Buffers: shared read=27324
+               ->  Parallel Append  (cost=0.00..54609.00 rows=1042348 width=6) (actual time=0.055..128.294 rows=833879 loops=3)
+                     Buffers: shared read=27324
+                     ->  Parallel Seq Scan on orders_p_2025_02 orders_partitioned_2  (cost=0.00..4130.77 rows=123051 width=6) (actual time=0.038..28.165 rows=209187 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2285
+                     ->  Parallel Seq Scan on orders_p_2025_07 orders_partitioned_7  (cost=0.00..4125.39 rows=122892 width=6) (actual time=0.084..26.801 rows=208917 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2282
+                     ->  Parallel Seq Scan on orders_p_2025_04 orders_partitioned_4  (cost=0.00..4123.69 rows=122846 width=6) (actual time=0.017..23.952 rows=208838 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2281
+                     ->  Parallel Seq Scan on orders_p_2025_01 orders_partitioned_1  (cost=0.00..4120.08 rows=122739 width=6) (actual time=0.010..23.764 rows=208656 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2279
+                     ->  Parallel Seq Scan on orders_p_2025_11 orders_partitioned_11  (cost=0.00..4119.84 rows=122723 width=6) (actual time=0.030..27.666 rows=208629 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2279
+                     ->  Parallel Seq Scan on orders_p_2025_06 orders_partitioned_6  (cost=0.00..4118.25 rows=122684 width=6) (actual time=0.010..27.632 rows=208562 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2278
+                     ->  Parallel Seq Scan on orders_p_2025_09 orders_partitioned_9  (cost=0.00..4117.74 rows=122649 width=6) (actual time=0.014..6.704 rows=69501 loops=3)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2278
+                     ->  Parallel Seq Scan on orders_p_2025_12 orders_partitioned_12  (cost=0.00..4113.16 rows=122544 width=6) (actual time=0.016..9.748 rows=104162 loops=2)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2275
+                     ->  Parallel Seq Scan on orders_p_2025_03 orders_partitioned_3  (cost=0.00..4109.89 rows=122459 width=6) (actual time=0.011..18.257 rows=208181 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2273
+                     ->  Parallel Seq Scan on orders_p_2025_05 orders_partitioned_5  (cost=0.00..4108.93 rows=122395 width=6) (actual time=0.006..24.666 rows=208072 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2273
+                     ->  Parallel Seq Scan on orders_p_2025_08 orders_partitioned_8  (cost=0.00..4107.25 rows=122350 width=6) (actual time=0.009..21.134 rows=207995 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2272
+                     ->  Parallel Seq Scan on orders_p_2025_10 orders_partitioned_10  (cost=0.00..4102.26 rows=122218 width=6) (actual time=0.041..26.346 rows=207770 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2269
+ Planning:
+   Buffers: shared hit=902 read=147
+ Planning Time: 18.469 ms
+ Execution Time: 166.519 ms
+(50 rows)
+
+Time: 185.270 ms
+                                                                                  QUERY PLAN                                                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=60820.97..60820.98 rows=1 width=40) (actual time=123.998..125.764 rows=1 loops=1)
+   Buffers: shared read=27324
+   ->  Gather  (cost=60820.74..60820.95 rows=2 width=40) (actual time=123.905..125.754 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared read=27324
+         ->  Partial Aggregate  (cost=59820.74..59820.75 rows=1 width=40) (actual time=122.729..122.732 rows=1 loops=3)
+               Buffers: shared read=27324
+               ->  Parallel Append  (cost=0.00..54609.00 rows=1042348 width=6) (actual time=0.012..91.359 rows=833879 loops=3)
+                     Buffers: shared read=27324
+                     ->  Parallel Seq Scan on orders_p_2025_02 orders_partitioned_2  (cost=0.00..4130.77 rows=123051 width=6) (actual time=0.016..19.246 rows=209187 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2285
+                     ->  Parallel Seq Scan on orders_p_2025_07 orders_partitioned_7  (cost=0.00..4125.39 rows=122892 width=6) (actual time=0.013..17.826 rows=208917 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2282
+                     ->  Parallel Seq Scan on orders_p_2025_04 orders_partitioned_4  (cost=0.00..4123.69 rows=122846 width=6) (actual time=0.019..15.401 rows=208838 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2281
+                     ->  Parallel Seq Scan on orders_p_2025_01 orders_partitioned_1  (cost=0.00..4120.08 rows=122739 width=6) (actual time=0.010..16.309 rows=208656 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2279
+                     ->  Parallel Seq Scan on orders_p_2025_11 orders_partitioned_11  (cost=0.00..4119.84 rows=122723 width=6) (actual time=0.015..14.395 rows=208629 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2279
+                     ->  Parallel Seq Scan on orders_p_2025_06 orders_partitioned_6  (cost=0.00..4118.25 rows=122684 width=6) (actual time=0.011..15.380 rows=208562 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2278
+                     ->  Parallel Seq Scan on orders_p_2025_09 orders_partitioned_9  (cost=0.00..4117.74 rows=122649 width=6) (actual time=0.008..5.110 rows=69501 loops=3)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2278
+                     ->  Parallel Seq Scan on orders_p_2025_12 orders_partitioned_12  (cost=0.00..4113.16 rows=122544 width=6) (actual time=0.007..6.775 rows=104162 loops=2)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2275
+                     ->  Parallel Seq Scan on orders_p_2025_03 orders_partitioned_3  (cost=0.00..4109.89 rows=122459 width=6) (actual time=0.004..13.681 rows=208181 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2273
+                     ->  Parallel Seq Scan on orders_p_2025_05 orders_partitioned_5  (cost=0.00..4108.93 rows=122395 width=6) (actual time=0.005..12.695 rows=208072 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2273
+                     ->  Parallel Seq Scan on orders_p_2025_08 orders_partitioned_8  (cost=0.00..4107.25 rows=122350 width=6) (actual time=0.004..13.419 rows=207995 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2272
+                     ->  Parallel Seq Scan on orders_p_2025_10 orders_partitioned_10  (cost=0.00..4102.26 rows=122218 width=6) (actual time=0.004..15.527 rows=207770 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2269
+ Planning:
+   Buffers: shared hit=48 read=48
+ Planning Time: 0.681 ms
+ Execution Time: 125.802 ms
+(50 rows)
+
+Time: 126.730 ms
+                                                                                  QUERY PLAN                                                                                   
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=60820.97..60820.98 rows=1 width=40) (actual time=125.082..126.802 rows=1 loops=1)
+   Buffers: shared read=27324
+   ->  Gather  (cost=60820.74..60820.95 rows=2 width=40) (actual time=125.001..126.797 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared read=27324
+         ->  Partial Aggregate  (cost=59820.74..59820.75 rows=1 width=40) (actual time=123.771..123.774 rows=1 loops=3)
+               Buffers: shared read=27324
+               ->  Parallel Append  (cost=0.00..54609.00 rows=1042348 width=6) (actual time=0.008..90.386 rows=833879 loops=3)
+                     Buffers: shared read=27324
+                     ->  Parallel Seq Scan on orders_p_2025_02 orders_partitioned_2  (cost=0.00..4130.77 rows=123051 width=6) (actual time=0.008..16.599 rows=209187 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2285
+                     ->  Parallel Seq Scan on orders_p_2025_07 orders_partitioned_7  (cost=0.00..4125.39 rows=122892 width=6) (actual time=0.010..15.968 rows=208917 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2282
+                     ->  Parallel Seq Scan on orders_p_2025_04 orders_partitioned_4  (cost=0.00..4123.69 rows=122846 width=6) (actual time=0.012..16.631 rows=208838 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2281
+                     ->  Parallel Seq Scan on orders_p_2025_01 orders_partitioned_1  (cost=0.00..4120.08 rows=122739 width=6) (actual time=0.009..17.016 rows=208656 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2279
+                     ->  Parallel Seq Scan on orders_p_2025_11 orders_partitioned_11  (cost=0.00..4119.84 rows=122723 width=6) (actual time=0.011..14.984 rows=208629 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2279
+                     ->  Parallel Seq Scan on orders_p_2025_06 orders_partitioned_6  (cost=0.00..4118.25 rows=122684 width=6) (actual time=0.009..15.896 rows=208562 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2278
+                     ->  Parallel Seq Scan on orders_p_2025_09 orders_partitioned_9  (cost=0.00..4117.74 rows=122649 width=6) (actual time=0.008..5.106 rows=69501 loops=3)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2278
+                     ->  Parallel Seq Scan on orders_p_2025_12 orders_partitioned_12  (cost=0.00..4113.16 rows=122544 width=6) (actual time=0.007..7.959 rows=104162 loops=2)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2275
+                     ->  Parallel Seq Scan on orders_p_2025_03 orders_partitioned_3  (cost=0.00..4109.89 rows=122459 width=6) (actual time=0.004..12.343 rows=208181 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2273
+                     ->  Parallel Seq Scan on orders_p_2025_05 orders_partitioned_5  (cost=0.00..4108.93 rows=122395 width=6) (actual time=0.004..12.310 rows=208072 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2273
+                     ->  Parallel Seq Scan on orders_p_2025_08 orders_partitioned_8  (cost=0.00..4107.25 rows=122350 width=6) (actual time=0.004..13.208 rows=207995 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2272
+                     ->  Parallel Seq Scan on orders_p_2025_10 orders_partitioned_10  (cost=0.00..4102.26 rows=122218 width=6) (actual time=0.004..12.437 rows=207770 loops=1)
+                           Filter: ((created_at >= '2025-01-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2026-01-01 00:00:00+00'::timestamp with time zone))
+                           Buffers: shared read=2269
+ Planning:
+   Buffers: shared hit=24 read=72
+ Planning Time: 0.514 ms
+ Execution Time: 126.860 ms
+(50 rows)
+
+Time: 127.616 ms
+=== E. Поиск по id: ОБЫЧНАЯ / ПАРТИЦИОНИРОВАННАЯ (по 3 прогона) ===
+Time: 3.315 ms
+                                                     QUERY PLAN                                                      
+---------------------------------------------------------------------------------------------------------------------
+ Index Scan using "PK_orders" on orders  (cost=0.43..8.45 rows=1 width=63) (actual time=0.496..0.496 rows=1 loops=1)
+   Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+   Buffers: shared hit=1 read=3
+ Planning:
+   Buffers: shared hit=4 read=2
+ Planning Time: 0.103 ms
+ Execution Time: 0.500 ms
+(7 rows)
+
+Time: 1.321 ms
+                                                     QUERY PLAN                                                      
+---------------------------------------------------------------------------------------------------------------------
+ Index Scan using "PK_orders" on orders  (cost=0.43..8.45 rows=1 width=63) (actual time=0.006..0.006 rows=1 loops=1)
+   Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+   Buffers: shared hit=4
+ Planning Time: 0.013 ms
+ Execution Time: 0.011 ms
+(5 rows)
+
+Time: 0.093 ms
+                                                     QUERY PLAN                                                      
+---------------------------------------------------------------------------------------------------------------------
+ Index Scan using "PK_orders" on orders  (cost=0.43..8.45 rows=1 width=63) (actual time=0.005..0.005 rows=1 loops=1)
+   Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+   Buffers: shared hit=4
+ Planning Time: 0.011 ms
+ Execution Time: 0.009 ms
+(5 rows)
+
+Time: 0.090 ms
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Append  (cost=0.42..211.06 rows=26 width=68) (actual time=9.870..9.875 rows=1 loops=1)
+   Buffers: shared read=76
+   ->  Index Scan using orders_p_2024_09_id_idx on orders_p_2024_09 orders_partitioned_1  (cost=0.42..8.44 rows=1 width=63) (actual time=0.011..0.012 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2024_10_id_idx on orders_p_2024_10 orders_partitioned_2  (cost=0.42..8.44 rows=1 width=63) (actual time=0.022..0.022 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2024_11_id_idx on orders_p_2024_11 orders_partitioned_3  (cost=0.42..8.44 rows=1 width=63) (actual time=0.517..0.517 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2024_12_id_idx on orders_p_2024_12 orders_partitioned_4  (cost=0.42..8.44 rows=1 width=63) (actual time=0.459..0.459 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_01_id_idx on orders_p_2025_01 orders_partitioned_5  (cost=0.42..8.44 rows=1 width=63) (actual time=0.397..0.398 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_02_id_idx on orders_p_2025_02 orders_partitioned_6  (cost=0.42..8.44 rows=1 width=63) (actual time=0.466..0.466 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_03_id_idx on orders_p_2025_03 orders_partitioned_7  (cost=0.42..8.44 rows=1 width=63) (actual time=0.414..0.414 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_04_id_idx on orders_p_2025_04 orders_partitioned_8  (cost=0.42..8.44 rows=1 width=63) (actual time=0.437..0.438 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_05_id_idx on orders_p_2025_05 orders_partitioned_9  (cost=0.42..8.44 rows=1 width=63) (actual time=0.447..0.447 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_06_id_idx on orders_p_2025_06 orders_partitioned_10  (cost=0.42..8.44 rows=1 width=63) (actual time=0.456..0.456 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_07_id_idx on orders_p_2025_07 orders_partitioned_11  (cost=0.42..8.44 rows=1 width=63) (actual time=0.438..0.438 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_08_id_idx on orders_p_2025_08 orders_partitioned_12  (cost=0.42..8.44 rows=1 width=63) (actual time=0.452..0.452 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_09_id_idx on orders_p_2025_09 orders_partitioned_13  (cost=0.42..8.44 rows=1 width=63) (actual time=0.413..0.413 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_10_id_idx on orders_p_2025_10 orders_partitioned_14  (cost=0.42..8.44 rows=1 width=63) (actual time=0.410..0.410 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_11_id_idx on orders_p_2025_11 orders_partitioned_15  (cost=0.42..8.44 rows=1 width=63) (actual time=0.408..0.408 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2025_12_id_idx on orders_p_2025_12 orders_partitioned_16  (cost=0.42..8.44 rows=1 width=63) (actual time=0.391..0.391 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_01_id_idx on orders_p_2026_01 orders_partitioned_17  (cost=0.42..8.44 rows=1 width=63) (actual time=0.396..0.397 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_02_id_idx on orders_p_2026_02 orders_partitioned_18  (cost=0.42..8.44 rows=1 width=63) (actual time=0.390..0.391 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_03_id_idx on orders_p_2026_03 orders_partitioned_19  (cost=0.42..8.44 rows=1 width=63) (actual time=0.410..0.411 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_04_id_idx on orders_p_2026_04 orders_partitioned_20  (cost=0.42..8.44 rows=1 width=63) (actual time=0.378..0.378 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_05_id_idx on orders_p_2026_05 orders_partitioned_21  (cost=0.42..8.44 rows=1 width=63) (actual time=0.444..0.444 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_06_id_idx on orders_p_2026_06 orders_partitioned_22  (cost=0.42..8.44 rows=1 width=63) (actual time=0.460..0.460 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_07_id_idx on orders_p_2026_07 orders_partitioned_23  (cost=0.42..8.44 rows=1 width=63) (actual time=0.435..0.435 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_08_id_idx on orders_p_2026_08 orders_partitioned_24  (cost=0.42..8.44 rows=1 width=63) (actual time=0.426..0.426 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=3
+   ->  Index Scan using orders_p_2026_09_id_idx on orders_p_2026_09 orders_partitioned_25  (cost=0.42..8.44 rows=1 width=63) (actual time=0.384..0.384 rows=1 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared read=4
+   ->  Seq Scan on orders_p_default orders_partitioned_26  (cost=0.00..0.00 rows=1 width=186) (actual time=0.002..0.002 rows=0 loops=1)
+         Filter: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+ Planning:
+   Buffers: shared hit=1092 read=98
+ Planning Time: 8.774 ms
+ Execution Time: 9.939 ms
+(83 rows)
+
+Time: 19.297 ms
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Append  (cost=0.42..211.06 rows=26 width=68) (actual time=0.085..0.087 rows=1 loops=1)
+   Buffers: shared hit=76
+   ->  Index Scan using orders_p_2024_09_id_idx on orders_p_2024_09 orders_partitioned_1  (cost=0.42..8.44 rows=1 width=63) (actual time=0.005..0.005 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2024_10_id_idx on orders_p_2024_10 orders_partitioned_2  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2024_11_id_idx on orders_p_2024_11 orders_partitioned_3  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2024_12_id_idx on orders_p_2024_12 orders_partitioned_4  (cost=0.42..8.44 rows=1 width=63) (actual time=0.005..0.006 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_01_id_idx on orders_p_2025_01 orders_partitioned_5  (cost=0.42..8.44 rows=1 width=63) (actual time=0.004..0.004 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_02_id_idx on orders_p_2025_02 orders_partitioned_6  (cost=0.42..8.44 rows=1 width=63) (actual time=0.004..0.004 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_03_id_idx on orders_p_2025_03 orders_partitioned_7  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_04_id_idx on orders_p_2025_04 orders_partitioned_8  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_05_id_idx on orders_p_2025_05 orders_partitioned_9  (cost=0.42..8.44 rows=1 width=63) (actual time=0.006..0.006 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_06_id_idx on orders_p_2025_06 orders_partitioned_10  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_07_id_idx on orders_p_2025_07 orders_partitioned_11  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_08_id_idx on orders_p_2025_08 orders_partitioned_12  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_09_id_idx on orders_p_2025_09 orders_partitioned_13  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_10_id_idx on orders_p_2025_10 orders_partitioned_14  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_11_id_idx on orders_p_2025_11 orders_partitioned_15  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_12_id_idx on orders_p_2025_12 orders_partitioned_16  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_01_id_idx on orders_p_2026_01 orders_partitioned_17  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_02_id_idx on orders_p_2026_02 orders_partitioned_18  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_03_id_idx on orders_p_2026_03 orders_partitioned_19  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_04_id_idx on orders_p_2026_04 orders_partitioned_20  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_05_id_idx on orders_p_2026_05 orders_partitioned_21  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_06_id_idx on orders_p_2026_06 orders_partitioned_22  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_07_id_idx on orders_p_2026_07 orders_partitioned_23  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_08_id_idx on orders_p_2026_08 orders_partitioned_24  (cost=0.42..8.44 rows=1 width=63) (actual time=0.005..0.005 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_09_id_idx on orders_p_2026_09 orders_partitioned_25  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=1 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=4
+   ->  Seq Scan on orders_p_default orders_partitioned_26  (cost=0.00..0.00 rows=1 width=186) (actual time=0.001..0.001 rows=0 loops=1)
+         Filter: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+ Planning:
+   Buffers: shared hit=4
+ Planning Time: 0.187 ms
+ Execution Time: 0.146 ms
+(83 rows)
+
+Time: 0.482 ms
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Append  (cost=0.42..211.06 rows=26 width=68) (actual time=0.057..0.059 rows=1 loops=1)
+   Buffers: shared hit=76
+   ->  Index Scan using orders_p_2024_09_id_idx on orders_p_2024_09 orders_partitioned_1  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2024_10_id_idx on orders_p_2024_10 orders_partitioned_2  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2024_11_id_idx on orders_p_2024_11 orders_partitioned_3  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2024_12_id_idx on orders_p_2024_12 orders_partitioned_4  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_01_id_idx on orders_p_2025_01 orders_partitioned_5  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_02_id_idx on orders_p_2025_02 orders_partitioned_6  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_03_id_idx on orders_p_2025_03 orders_partitioned_7  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_04_id_idx on orders_p_2025_04 orders_partitioned_8  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_05_id_idx on orders_p_2025_05 orders_partitioned_9  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_06_id_idx on orders_p_2025_06 orders_partitioned_10  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_07_id_idx on orders_p_2025_07 orders_partitioned_11  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_08_id_idx on orders_p_2025_08 orders_partitioned_12  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_09_id_idx on orders_p_2025_09 orders_partitioned_13  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_10_id_idx on orders_p_2025_10 orders_partitioned_14  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_11_id_idx on orders_p_2025_11 orders_partitioned_15  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2025_12_id_idx on orders_p_2025_12 orders_partitioned_16  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_01_id_idx on orders_p_2026_01 orders_partitioned_17  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_02_id_idx on orders_p_2026_02 orders_partitioned_18  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_03_id_idx on orders_p_2026_03 orders_partitioned_19  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_04_id_idx on orders_p_2026_04 orders_partitioned_20  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_05_id_idx on orders_p_2026_05 orders_partitioned_21  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_06_id_idx on orders_p_2026_06 orders_partitioned_22  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_07_id_idx on orders_p_2026_07 orders_partitioned_23  (cost=0.42..8.44 rows=1 width=63) (actual time=0.003..0.003 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_08_id_idx on orders_p_2026_08 orders_partitioned_24  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=0 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=3
+   ->  Index Scan using orders_p_2026_09_id_idx on orders_p_2026_09 orders_partitioned_25  (cost=0.42..8.44 rows=1 width=63) (actual time=0.002..0.002 rows=1 loops=1)
+         Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=4
+   ->  Seq Scan on orders_p_default orders_partitioned_26  (cost=0.00..0.00 rows=1 width=186) (actual time=0.001..0.001 rows=0 loops=1)
+         Filter: (id = 'bbbbbbbb-0000-0000-0000-000000000003'::uuid)
+ Planning:
+   Buffers: shared hit=4
+ Planning Time: 0.133 ms
+ Execution Time: 0.111 ms
+(83 rows)
+
+Time: 0.387 ms
+=== F. Удаление данных старше двух лет ===
+                                                                                QUERY PLAN                                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=5319.02..5319.03 rows=1 width=8) (actual time=73.086..74.185 rows=1 loops=1)
+   Buffers: shared hit=68081 read=608
+   ->  Gather  (cost=5318.80..5319.01 rows=2 width=8) (actual time=73.032..74.182 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=68081 read=608
+         ->  Partial Aggregate  (cost=4318.80..4318.81 rows=1 width=8) (actual time=70.092..70.093 rows=1 loops=3)
+               Buffers: shared hit=68081 read=608
+               ->  Parallel Index Only Scan using "IX_orders_created_at" on orders  (cost=0.43..4167.46 rows=60537 width=0) (actual time=0.346..68.931 rows=47306 loops=3)
+                     Index Cond: (created_at < '2024-10-01 00:00:00+00'::timestamp with time zone)
+                     Heap Fetches: 0
+                     Buffers: shared hit=68081 read=608
+ Planning Time: 0.046 ms
+ Execution Time: 74.213 ms
+(14 rows)
+
+Time: 74.380 ms
+ partition_to_drop | rows_to_drop 
+-------------------+--------------
+ 31 MB             |       141919
+(1 row)
+
+Time: 8.050 ms
+DROP TABLE
+Time: 5.755 ms
+ partitions_left 
+-----------------
+              25
+(1 row)
+
+Time: 1.689 ms
+ rows_left 
+-----------
+   4858084
+(1 row)
+
+Time: 125.400 ms

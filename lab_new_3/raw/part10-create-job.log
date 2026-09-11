@@ -1,0 +1,33 @@
+### Часть 10. CreatePartitionsJob: первый запуск после простоя
+# состояние до запуска: партиции events по 2026-09-11 включительно,
+# партиции orders_partitioned по 2026-09 включительно
+
+[08:04:57 INF] Partition job started.
+
+Existing partitions: 28
+Required partitions: 8
+Missing partitions: 6
+
+Creating:
+events_2026_09_12  [2026-09-12 .. 2026-09-13)
+events_2026_09_13  [2026-09-13 .. 2026-09-14)
+events_2026_09_14  [2026-09-14 .. 2026-09-15)
+orders_p_2026_10  [2026-10-01 .. 2026-11-01)
+orders_p_2026_11  [2026-11-01 .. 2026-12-01)
+orders_p_2026_12  [2026-12-01 .. 2027-01-01)
+
+Partition created successfully.
+
+Partition job finished in 103 ms.
+
+[08:04:57 INF] Next partition job run in 16:55:02.4411317
+
+### Повторный запуск — идемпотентность
+{
+    "existing": 34,
+    "required": 8,
+    "missing": 0,
+    "created": [],
+    "errors": [],
+    "elapsedMs": 23.1244
+}

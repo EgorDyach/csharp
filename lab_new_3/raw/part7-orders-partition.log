@@ -1,0 +1,84 @@
+Timing is on.
+SET
+Time: 0.263 ms
+SET
+Time: 0.484 ms
+### 12.7 Каркас партиционированной таблицы
+CREATE TABLE
+Time: 15.272 ms
+### 12.8 Помесячные партиции на весь период данных
+DO
+Time: 20.355 ms
+CREATE TABLE
+Time: 1.268 ms
+ partitions_created 
+--------------------
+                 26
+(1 row)
+
+Time: 3.550 ms
+### 12.9 Перенос 5 000 003 строк
+INSERT 0 5000003
+Time: 3804.590 ms (00:03.805)
+### 12.10 Индексы создаём на родителе — в партициях появятся локальные
+ALTER TABLE
+Time: 1518.839 ms (00:01.519)
+CREATE INDEX
+Time: 883.687 ms
+CREATE INDEX
+Time: 1493.100 ms (00:01.493)
+CREATE INDEX
+Time: 899.733 ms
+ALTER TABLE
+Time: 452.856 ms
+ANALYZE
+Time: 856.002 ms
+### 12.11 Распределение строк по партициям
+  partition_name  | count  | size  
+------------------+--------+-------
+ orders_p_2024_09 | 141919 | 31 MB
+ orders_p_2024_10 | 208430 | 45 MB
+ orders_p_2024_11 | 207912 | 45 MB
+ orders_p_2024_12 | 207914 | 45 MB
+ orders_p_2025_01 | 208656 | 45 MB
+ orders_p_2025_02 | 209187 | 45 MB
+ orders_p_2025_03 | 208181 | 45 MB
+ orders_p_2025_04 | 208838 | 45 MB
+ orders_p_2025_05 | 208072 | 45 MB
+ orders_p_2025_06 | 208562 | 45 MB
+ orders_p_2025_07 | 208917 | 45 MB
+ orders_p_2025_08 | 207995 | 45 MB
+ orders_p_2025_09 | 208504 | 45 MB
+ orders_p_2025_10 | 207770 | 45 MB
+ orders_p_2025_11 | 208629 | 45 MB
+ orders_p_2025_12 | 208325 | 45 MB
+ orders_p_2026_01 | 208613 | 45 MB
+ orders_p_2026_02 | 207830 | 45 MB
+ orders_p_2026_03 | 208477 | 45 MB
+ orders_p_2026_04 | 208273 | 45 MB
+ orders_p_2026_05 | 207497 | 45 MB
+ orders_p_2026_06 | 208266 | 45 MB
+ orders_p_2026_07 | 208061 | 45 MB
+ orders_p_2026_08 | 208631 | 45 MB
+ orders_p_2026_09 |  66544 | 14 MB
+(25 rows)
+
+Time: 263.765 ms
+### 12.12 Локальные индексы одной партиции
+               local_index               |  size   
+-----------------------------------------+---------
+ orders_p_2026_08_pkey                   | 8288 kB
+ orders_p_2026_08_created_at_idx         | 4608 kB
+ orders_p_2026_08_user_id_created_at_idx | 8288 kB
+ orders_p_2026_08_id_idx                 | 6448 kB
+(4 rows)
+
+Time: 0.888 ms
+### 12.13 Суммарный размер: партиционированная против обычной
+             table_name             |  total  
+------------------------------------+---------
+ orders (обычная)                   | 1067 MB
+ orders_partitioned (25+1 партиция) | 1074 MB
+(2 rows)
+
+Time: 1.725 ms

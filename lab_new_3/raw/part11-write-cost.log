@@ -1,0 +1,113 @@
+Timing is on.
+SET
+Time: 0.194 ms
+SET
+Time: 0.114 ms
+psql:<stdin>:16: NOTICE:  table "w_plain" does not exist, skipping
+DROP TABLE
+Time: 0.326 ms
+psql:<stdin>:17: NOTICE:  table "w_part" does not exist, skipping
+DROP TABLE
+Time: 0.023 ms
+### W0 Две одинаковые таблицы: обычная и разбитая на 25 месячных партиций
+CREATE TABLE
+Time: 2.023 ms
+CREATE TABLE
+Time: 1.360 ms
+DO
+Time: 11.419 ms
+CREATE INDEX
+Time: 2.147 ms
+CREATE INDEX
+Time: 1.594 ms
+CREATE INDEX
+Time: 43.495 ms
+CREATE INDEX
+Time: 24.627 ms
+SELECT 500000
+Time: 753.316 ms
+ANALYZE
+Time: 85.678 ms
+### W1 500 000 строк в ОБЫЧНУЮ таблицу
+                                                     QUERY PLAN                                                      
+---------------------------------------------------------------------------------------------------------------------
+ Insert on w_plain  (cost=0.00..11946.00 rows=0 width=0) (actual time=1885.588..1885.589 rows=0 loops=1)
+   Buffers: shared hit=3363423 read=2 dirtied=10738 written=10738, local read=5696 written=1006
+   ->  Seq Scan on w_src  (cost=0.00..11946.00 rows=500000 width=70) (actual time=0.020..63.770 rows=500000 loops=1)
+         Buffers: local read=5696 written=1006
+ Planning:
+   Buffers: shared hit=17
+ Planning Time: 0.080 ms
+ Execution Time: 1885.634 ms
+(8 rows)
+
+Time: 1897.702 ms (00:01.898)
+### W2 Те же 500 000 строк в ПАРТИЦИОНИРОВАННУЮ (25 партиций)
+                                                     QUERY PLAN                                                      
+---------------------------------------------------------------------------------------------------------------------
+ Insert on w_part  (cost=0.00..11946.00 rows=0 width=0) (actual time=1806.087..1806.089 rows=0 loops=1)
+   Buffers: shared hit=2507254 read=46 dirtied=10736 written=15468, local read=5696
+   ->  Seq Scan on w_src  (cost=0.00..11946.00 rows=500000 width=70) (actual time=0.010..70.405 rows=500000 loops=1)
+         Buffers: local read=5696
+ Planning Time: 0.071 ms
+ Execution Time: 1806.332 ms
+(6 rows)
+
+Time: 1809.973 ms (00:01.810)
+### W3 Размер: одна таблица против двадцати пяти
+    t    | total 
+---------+-------
+ w_plain | 84 MB
+ w_part  | 84 MB
+(2 rows)
+
+Time: 10.305 ms
+### W4 Цена планирования: 1 таблица против 25 партиций
+ANALYZE
+Time: 51.677 ms
+ANALYZE
+Time: 319.405 ms
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=6568.57..6568.58 rows=1 width=8) (actual time=39.890..39.891 rows=1 loops=1)
+   ->  Bitmap Heap Scan on w_plain  (cost=528.50..6516.85 rows=20690 width=0) (actual time=1.477..39.217 rows=21837 loops=1)
+         Recheck Cond: ((created_at >= '2025-05-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2025-06-01 00:00:00+00'::timestamp with time zone))
+         Heap Blocks: exact=5573
+         ->  Bitmap Index Scan on w_plain_created_at_idx  (cost=0.00..523.32 rows=20690 width=0) (actual time=1.066..1.067 rows=21837 loops=1)
+               Index Cond: ((created_at >= '2025-05-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2025-06-01 00:00:00+00'::timestamp with time zone))
+ Planning Time: 0.922 ms
+ Execution Time: 39.948 ms
+(8 rows)
+
+Time: 42.077 ms
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=630.15..630.16 rows=1 width=8) (actual time=1.785..1.786 rows=1 loops=1)
+   ->  Seq Scan on w_part_2025_05 w_part  (cost=0.00..575.56 rows=21837 width=0) (actual time=0.008..1.342 rows=21837 loops=1)
+         Filter: ((created_at >= '2025-05-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2025-06-01 00:00:00+00'::timestamp with time zone))
+ Planning Time: 0.731 ms
+ Execution Time: 1.799 ms
+(5 rows)
+
+Time: 2.711 ms
+### W5 И то, ради чего всё затевалось: удаление старого месяца
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Delete on w_plain  (cost=536.37..6530.39 rows=0 width=0) (actual time=10.653..10.654 rows=0 loops=1)
+   Buffers: shared hit=27466 read=171 dirtied=5419 written=171
+   ->  Bitmap Heap Scan on w_plain  (cost=536.37..6530.39 rows=21068 width=6) (actual time=2.001..7.376 rows=22002 loops=1)
+         Recheck Cond: ((created_at >= '2024-10-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2024-11-01 00:00:00+00'::timestamp with time zone))
+         Heap Blocks: exact=5564
+         Buffers: shared hit=5464 read=171 written=171
+         ->  Bitmap Index Scan on w_plain_created_at_idx  (cost=0.00..531.10 rows=21068 width=0) (actual time=1.650..1.650 rows=22002 loops=1)
+               Index Cond: ((created_at >= '2024-10-01 00:00:00+00'::timestamp with time zone) AND (created_at < '2024-11-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=3 read=68 written=68
+ Planning:
+   Buffers: shared hit=2 read=2 written=2
+ Planning Time: 0.064 ms
+ Execution Time: 11.231 ms
+(13 rows)
+
+Time: 12.509 ms
+DROP TABLE
+Time: 6.971 ms

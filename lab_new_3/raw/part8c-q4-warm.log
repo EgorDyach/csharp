@@ -1,0 +1,449 @@
+Timing is on.
+SET
+Time: 0.662 ms
+SET
+Time: 1.372 ms
+Time: 22.274 ms
+=== Q4 ОБЫЧНАЯ (3 прогона)
+                                                                        QUERY PLAN                                                                        
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..16.50 rows=20 width=63) (actual time=1.525..12.456 rows=20 loops=1)
+   Buffers: shared hit=1 read=22
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.43..200106.56 rows=249020 width=63) (actual time=1.523..12.444 rows=20 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=1 read=22
+ Planning:
+   Buffers: shared hit=12 dirtied=1
+ Planning Time: 0.984 ms
+ Execution Time: 12.564 ms
+(9 rows)
+
+Time: 18.166 ms
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..16.50 rows=20 width=63) (actual time=0.037..0.062 rows=20 loops=1)
+   Buffers: shared hit=23
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.43..200106.56 rows=249020 width=63) (actual time=0.036..0.059 rows=20 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=23
+ Planning Time: 0.142 ms
+ Execution Time: 0.086 ms
+(7 rows)
+
+Time: 0.756 ms
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..16.50 rows=20 width=63) (actual time=0.018..0.030 rows=20 loops=1)
+   Buffers: shared hit=23
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.43..200106.56 rows=249020 width=63) (actual time=0.018..0.027 rows=20 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=23
+ Planning Time: 0.062 ms
+ Execution Time: 0.040 ms
+(7 rows)
+
+Time: 0.296 ms
+=== Q4 ПАРТИЦИОНИРОВАННАЯ (3 прогона)
+                                                                                             QUERY PLAN                                                                                             
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=11.19..27.96 rows=20 width=63) (actual time=72.252..175.639 rows=20 loops=1)
+   Buffers: shared hit=99 read=439
+   ->  Merge Append  (cost=11.19..202342.45 rows=241342 width=63) (actual time=72.250..175.623 rows=20 loops=1)
+         Sort Key: orders_partitioned.created_at DESC
+         Buffers: shared hit=99 read=439
+         ->  Index Scan using orders_p_2024_10_user_id_created_at_idx on orders_p_2024_10 orders_partitioned_1  (cost=0.42..8304.28 rows=10484 width=63) (actual time=1.406..1.406 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2024_11_user_id_created_at_idx on orders_p_2024_11 orders_partitioned_2  (cost=0.42..8282.20 rows=10624 width=63) (actual time=1.134..1.134 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2024_12_user_id_created_at_idx on orders_p_2024_12 orders_partitioned_3  (cost=0.42..8272.62 rows=10403 width=63) (actual time=1.007..1.007 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_01_user_id_created_at_idx on orders_p_2025_01 orders_partitioned_4  (cost=0.42..8310.85 rows=10906 width=63) (actual time=1.724..1.724 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_02_user_id_created_at_idx on orders_p_2025_02 orders_partitioned_5  (cost=0.42..8320.94 rows=10592 width=63) (actual time=1.788..1.788 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_03_user_id_created_at_idx on orders_p_2025_03 orders_partitioned_6  (cost=0.42..8274.98 rows=10465 width=63) (actual time=3.544..3.544 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_04_user_id_created_at_idx on orders_p_2025_04 orders_partitioned_7  (cost=0.42..8285.00 rows=10240 width=63) (actual time=1.623..1.623 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_05_user_id_created_at_idx on orders_p_2025_05 orders_partitioned_8  (cost=0.42..8279.64 rows=10473 width=63) (actual time=3.006..3.007 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_06_user_id_created_at_idx on orders_p_2025_06 orders_partitioned_9  (cost=0.42..8289.31 rows=10080 width=63) (actual time=2.269..2.269 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_07_user_id_created_at_idx on orders_p_2025_07 orders_partitioned_10  (cost=0.42..8340.76 rows=10731 width=63) (actual time=1.473..1.473 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_08_user_id_created_at_idx on orders_p_2025_08 orders_partitioned_11  (cost=0.42..8249.64 rows=10261 width=63) (actual time=2.089..2.089 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_09_user_id_created_at_idx on orders_p_2025_09 orders_partitioned_12  (cost=0.42..8275.06 rows=10036 width=63) (actual time=2.393..2.393 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_10_user_id_created_at_idx on orders_p_2025_10 orders_partitioned_13  (cost=0.42..8226.24 rows=10292 width=63) (actual time=2.116..2.117 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_11_user_id_created_at_idx on orders_p_2025_11 orders_partitioned_14  (cost=0.42..8301.56 rows=10445 width=63) (actual time=5.062..5.062 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2025_12_user_id_created_at_idx on orders_p_2025_12 orders_partitioned_15  (cost=0.42..8263.55 rows=10243 width=63) (actual time=3.536..3.536 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_01_user_id_created_at_idx on orders_p_2026_01 orders_partitioned_16  (cost=0.42..8276.39 rows=10055 width=63) (actual time=3.068..3.069 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_02_user_id_created_at_idx on orders_p_2026_02 orders_partitioned_17  (cost=0.42..8278.92 rows=10274 width=63) (actual time=3.013..3.013 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_03_user_id_created_at_idx on orders_p_2026_03 orders_partitioned_18  (cost=0.42..8249.22 rows=10083 width=63) (actual time=5.942..5.942 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_04_user_id_created_at_idx on orders_p_2026_04 orders_partitioned_19  (cost=0.42..8294.00 rows=10247 width=63) (actual time=5.472..5.472 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_05_user_id_created_at_idx on orders_p_2026_05 orders_partitioned_20  (cost=0.42..8246.51 rows=10133 width=63) (actual time=7.721..7.721 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_06_user_id_created_at_idx on orders_p_2026_06 orders_partitioned_21  (cost=0.42..8283.59 rows=10316 width=63) (actual time=5.153..5.154 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_07_user_id_created_at_idx on orders_p_2026_07 orders_partitioned_22  (cost=0.42..8294.07 rows=10514 width=63) (actual time=2.933..2.933 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_08_user_id_created_at_idx on orders_p_2026_08 orders_partitioned_23  (cost=0.42..8281.15 rows=10153 width=63) (actual time=2.273..2.273 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared read=4
+         ->  Index Scan using orders_p_2026_09_created_at_idx on orders_p_2026_09 orders_partitioned_24  (cost=0.29..4808.81 rows=3285 width=63) (actual time=2.159..105.481 rows=20 loops=1)
+               Filter: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Rows Removed by Filter: 415
+               Buffers: shared hit=91 read=347
+         ->  Index Scan using orders_p_2026_10_user_id_created_at_idx on orders_p_2026_10 orders_partitioned_25  (cost=0.15..12.18 rows=2 width=186) (actual time=0.176..0.176 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_11_user_id_created_at_idx on orders_p_2026_11 orders_partitioned_26  (cost=0.15..12.18 rows=2 width=186) (actual time=0.086..0.086 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_12_user_id_created_at_idx on orders_p_2026_12 orders_partitioned_27  (cost=0.15..12.18 rows=2 width=186) (actual time=0.010..0.011 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_default_user_id_created_at_idx on orders_p_default orders_partitioned_28  (cost=0.12..8.14 rows=1 width=186) (actual time=0.021..0.021 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=2413 read=125 dirtied=1
+ Planning Time: 90.197 ms
+ Execution Time: 176.227 ms
+(94 rows)
+
+Time: 267.522 ms
+                                                                                             QUERY PLAN                                                                                             
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=11.19..27.96 rows=20 width=63) (actual time=0.372..0.984 rows=20 loops=1)
+   Buffers: shared hit=538
+   ->  Merge Append  (cost=11.19..202342.45 rows=241342 width=63) (actual time=0.372..0.980 rows=20 loops=1)
+         Sort Key: orders_partitioned.created_at DESC
+         Buffers: shared hit=538
+         ->  Index Scan using orders_p_2024_10_user_id_created_at_idx on orders_p_2024_10 orders_partitioned_1  (cost=0.42..8304.28 rows=10484 width=63) (actual time=0.012..0.013 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2024_11_user_id_created_at_idx on orders_p_2024_11 orders_partitioned_2  (cost=0.42..8282.20 rows=10624 width=63) (actual time=0.010..0.010 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2024_12_user_id_created_at_idx on orders_p_2024_12 orders_partitioned_3  (cost=0.42..8272.62 rows=10403 width=63) (actual time=0.010..0.010 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_01_user_id_created_at_idx on orders_p_2025_01 orders_partitioned_4  (cost=0.42..8310.85 rows=10906 width=63) (actual time=0.010..0.010 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_02_user_id_created_at_idx on orders_p_2025_02 orders_partitioned_5  (cost=0.42..8320.94 rows=10592 width=63) (actual time=0.014..0.014 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_03_user_id_created_at_idx on orders_p_2025_03 orders_partitioned_6  (cost=0.42..8274.98 rows=10465 width=63) (actual time=0.010..0.010 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_04_user_id_created_at_idx on orders_p_2025_04 orders_partitioned_7  (cost=0.42..8285.00 rows=10240 width=63) (actual time=0.007..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_05_user_id_created_at_idx on orders_p_2025_05 orders_partitioned_8  (cost=0.42..8279.64 rows=10473 width=63) (actual time=0.007..0.007 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_06_user_id_created_at_idx on orders_p_2025_06 orders_partitioned_9  (cost=0.42..8289.31 rows=10080 width=63) (actual time=0.014..0.014 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_07_user_id_created_at_idx on orders_p_2025_07 orders_partitioned_10  (cost=0.42..8340.76 rows=10731 width=63) (actual time=0.011..0.011 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_08_user_id_created_at_idx on orders_p_2025_08 orders_partitioned_11  (cost=0.42..8249.64 rows=10261 width=63) (actual time=0.011..0.011 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_09_user_id_created_at_idx on orders_p_2025_09 orders_partitioned_12  (cost=0.42..8275.06 rows=10036 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_10_user_id_created_at_idx on orders_p_2025_10 orders_partitioned_13  (cost=0.42..8226.24 rows=10292 width=63) (actual time=0.006..0.006 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_11_user_id_created_at_idx on orders_p_2025_11 orders_partitioned_14  (cost=0.42..8301.56 rows=10445 width=63) (actual time=0.006..0.006 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_12_user_id_created_at_idx on orders_p_2025_12 orders_partitioned_15  (cost=0.42..8263.55 rows=10243 width=63) (actual time=0.007..0.007 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_01_user_id_created_at_idx on orders_p_2026_01 orders_partitioned_16  (cost=0.42..8276.39 rows=10055 width=63) (actual time=0.007..0.007 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_02_user_id_created_at_idx on orders_p_2026_02 orders_partitioned_17  (cost=0.42..8278.92 rows=10274 width=63) (actual time=0.006..0.006 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_03_user_id_created_at_idx on orders_p_2026_03 orders_partitioned_18  (cost=0.42..8249.22 rows=10083 width=63) (actual time=0.006..0.006 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_04_user_id_created_at_idx on orders_p_2026_04 orders_partitioned_19  (cost=0.42..8294.00 rows=10247 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_05_user_id_created_at_idx on orders_p_2026_05 orders_partitioned_20  (cost=0.42..8246.51 rows=10133 width=63) (actual time=0.011..0.011 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_06_user_id_created_at_idx on orders_p_2026_06 orders_partitioned_21  (cost=0.42..8283.59 rows=10316 width=63) (actual time=0.007..0.007 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_07_user_id_created_at_idx on orders_p_2026_07 orders_partitioned_22  (cost=0.42..8294.07 rows=10514 width=63) (actual time=0.061..0.061 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_08_user_id_created_at_idx on orders_p_2026_08 orders_partitioned_23  (cost=0.42..8281.15 rows=10153 width=63) (actual time=0.050..0.050 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_09_created_at_idx on orders_p_2026_09 orders_partitioned_24  (cost=0.29..4808.81 rows=3285 width=63) (actual time=0.029..0.624 rows=20 loops=1)
+               Filter: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Rows Removed by Filter: 415
+               Buffers: shared hit=438
+         ->  Index Scan using orders_p_2026_10_user_id_created_at_idx on orders_p_2026_10 orders_partitioned_25  (cost=0.15..12.18 rows=2 width=186) (actual time=0.011..0.011 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_11_user_id_created_at_idx on orders_p_2026_11 orders_partitioned_26  (cost=0.15..12.18 rows=2 width=186) (actual time=0.004..0.004 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_12_user_id_created_at_idx on orders_p_2026_12 orders_partitioned_27  (cost=0.15..12.18 rows=2 width=186) (actual time=0.018..0.018 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_default_user_id_created_at_idx on orders_p_default orders_partitioned_28  (cost=0.12..8.14 rows=1 width=186) (actual time=0.006..0.006 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=16
+ Planning Time: 0.540 ms
+ Execution Time: 1.638 ms
+(94 rows)
+
+Time: 2.723 ms
+                                                                                             QUERY PLAN                                                                                             
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=11.19..27.96 rows=20 width=63) (actual time=0.241..0.521 rows=20 loops=1)
+   Buffers: shared hit=538
+   ->  Merge Append  (cost=11.19..202342.45 rows=241342 width=63) (actual time=0.240..0.520 rows=20 loops=1)
+         Sort Key: orders_partitioned.created_at DESC
+         Buffers: shared hit=538
+         ->  Index Scan using orders_p_2024_10_user_id_created_at_idx on orders_p_2024_10 orders_partitioned_1  (cost=0.42..8304.28 rows=10484 width=63) (actual time=0.017..0.018 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2024_11_user_id_created_at_idx on orders_p_2024_11 orders_partitioned_2  (cost=0.42..8282.20 rows=10624 width=63) (actual time=0.010..0.010 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2024_12_user_id_created_at_idx on orders_p_2024_12 orders_partitioned_3  (cost=0.42..8272.62 rows=10403 width=63) (actual time=0.009..0.009 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_01_user_id_created_at_idx on orders_p_2025_01 orders_partitioned_4  (cost=0.42..8310.85 rows=10906 width=63) (actual time=0.009..0.009 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_02_user_id_created_at_idx on orders_p_2025_02 orders_partitioned_5  (cost=0.42..8320.94 rows=10592 width=63) (actual time=0.009..0.009 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_03_user_id_created_at_idx on orders_p_2025_03 orders_partitioned_6  (cost=0.42..8274.98 rows=10465 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_04_user_id_created_at_idx on orders_p_2025_04 orders_partitioned_7  (cost=0.42..8285.00 rows=10240 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_05_user_id_created_at_idx on orders_p_2025_05 orders_partitioned_8  (cost=0.42..8279.64 rows=10473 width=63) (actual time=0.007..0.007 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_06_user_id_created_at_idx on orders_p_2025_06 orders_partitioned_9  (cost=0.42..8289.31 rows=10080 width=63) (actual time=0.013..0.013 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_07_user_id_created_at_idx on orders_p_2025_07 orders_partitioned_10  (cost=0.42..8340.76 rows=10731 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_08_user_id_created_at_idx on orders_p_2025_08 orders_partitioned_11  (cost=0.42..8249.64 rows=10261 width=63) (actual time=0.009..0.009 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_09_user_id_created_at_idx on orders_p_2025_09 orders_partitioned_12  (cost=0.42..8275.06 rows=10036 width=63) (actual time=0.009..0.010 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_10_user_id_created_at_idx on orders_p_2025_10 orders_partitioned_13  (cost=0.42..8226.24 rows=10292 width=63) (actual time=0.009..0.009 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_11_user_id_created_at_idx on orders_p_2025_11 orders_partitioned_14  (cost=0.42..8301.56 rows=10445 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2025_12_user_id_created_at_idx on orders_p_2025_12 orders_partitioned_15  (cost=0.42..8263.55 rows=10243 width=63) (actual time=0.011..0.011 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_01_user_id_created_at_idx on orders_p_2026_01 orders_partitioned_16  (cost=0.42..8276.39 rows=10055 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_02_user_id_created_at_idx on orders_p_2026_02 orders_partitioned_17  (cost=0.42..8278.92 rows=10274 width=63) (actual time=0.009..0.009 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_03_user_id_created_at_idx on orders_p_2026_03 orders_partitioned_18  (cost=0.42..8249.22 rows=10083 width=63) (actual time=0.007..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_04_user_id_created_at_idx on orders_p_2026_04 orders_partitioned_19  (cost=0.42..8294.00 rows=10247 width=63) (actual time=0.011..0.011 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_05_user_id_created_at_idx on orders_p_2026_05 orders_partitioned_20  (cost=0.42..8246.51 rows=10133 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_06_user_id_created_at_idx on orders_p_2026_06 orders_partitioned_21  (cost=0.42..8283.59 rows=10316 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_07_user_id_created_at_idx on orders_p_2026_07 orders_partitioned_22  (cost=0.42..8294.07 rows=10514 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_08_user_id_created_at_idx on orders_p_2026_08 orders_partitioned_23  (cost=0.42..8281.15 rows=10153 width=63) (actual time=0.008..0.008 rows=1 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_09_created_at_idx on orders_p_2026_09 orders_partitioned_24  (cost=0.29..4808.81 rows=3285 width=63) (actual time=0.009..0.285 rows=20 loops=1)
+               Filter: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Rows Removed by Filter: 415
+               Buffers: shared hit=438
+         ->  Index Scan using orders_p_2026_10_user_id_created_at_idx on orders_p_2026_10 orders_partitioned_25  (cost=0.15..12.18 rows=2 width=186) (actual time=0.004..0.004 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_11_user_id_created_at_idx on orders_p_2026_11 orders_partitioned_26  (cost=0.15..12.18 rows=2 width=186) (actual time=0.004..0.004 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_12_user_id_created_at_idx on orders_p_2026_12 orders_partitioned_27  (cost=0.15..12.18 rows=2 width=186) (actual time=0.004..0.004 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_default_user_id_created_at_idx on orders_p_default orders_partitioned_28  (cost=0.12..8.14 rows=1 width=186) (actual time=0.004..0.004 rows=0 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=16
+ Planning Time: 0.671 ms
+ Execution Time: 0.671 ms
+(94 rows)
+
+Time: 1.927 ms
+=== Q4-fix ПАРТИЦИОНИРОВАННАЯ с периодом (3 прогона)
+                                                                                            QUERY PLAN                                                                                             
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1.92..18.43 rows=20 width=63) (actual time=0.983..1.091 rows=20 loops=1)
+   Buffers: shared hit=36 read=4
+   ->  Merge Append  (cost=1.92..19777.76 rows=23956 width=63) (actual time=0.981..1.088 rows=20 loops=1)
+         Sort Key: orders_partitioned.created_at DESC
+         Buffers: shared hit=36 read=4
+         ->  Index Scan using orders_p_2026_07_user_id_created_at_idx on orders_p_2026_07 orders_partitioned_1  (cost=0.42..8320.35 rows=10514 width=63) (actual time=0.017..0.017 rows=1 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_08_user_id_created_at_idx on orders_p_2026_08 orders_partitioned_2  (cost=0.42..8306.53 rows=10153 width=63) (actual time=0.010..0.010 rows=1 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_09_user_id_created_at_idx on orders_p_2026_09 orders_partitioned_3  (cost=0.42..2662.08 rows=3285 width=63) (actual time=0.909..1.013 rows=20 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=20 read=4
+         ->  Index Scan using orders_p_2026_10_user_id_created_at_idx on orders_p_2026_10 orders_partitioned_4  (cost=0.15..8.17 rows=1 width=186) (actual time=0.021..0.021 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_11_user_id_created_at_idx on orders_p_2026_11 orders_partitioned_5  (cost=0.15..8.17 rows=1 width=186) (actual time=0.006..0.006 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_12_user_id_created_at_idx on orders_p_2026_12 orders_partitioned_6  (cost=0.15..8.17 rows=1 width=186) (actual time=0.005..0.005 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_default_user_id_created_at_idx on orders_p_default orders_partitioned_7  (cost=0.12..8.14 rows=1 width=186) (actual time=0.009..0.009 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=25 read=10
+ Planning Time: 5.653 ms
+ Execution Time: 1.150 ms
+(30 rows)
+
+Time: 7.304 ms
+                                                                                            QUERY PLAN                                                                                             
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1.92..18.43 rows=20 width=63) (actual time=0.195..0.231 rows=20 loops=1)
+   Buffers: shared hit=40
+   ->  Merge Append  (cost=1.92..19777.76 rows=23956 width=63) (actual time=0.194..0.228 rows=20 loops=1)
+         Sort Key: orders_partitioned.created_at DESC
+         Buffers: shared hit=40
+         ->  Index Scan using orders_p_2026_07_user_id_created_at_idx on orders_p_2026_07 orders_partitioned_1  (cost=0.42..8320.35 rows=10514 width=63) (actual time=0.016..0.016 rows=1 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_08_user_id_created_at_idx on orders_p_2026_08 orders_partitioned_2  (cost=0.42..8306.53 rows=10153 width=63) (actual time=0.029..0.029 rows=1 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_09_user_id_created_at_idx on orders_p_2026_09 orders_partitioned_3  (cost=0.42..2662.08 rows=3285 width=63) (actual time=0.058..0.089 rows=20 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=24
+         ->  Index Scan using orders_p_2026_10_user_id_created_at_idx on orders_p_2026_10 orders_partitioned_4  (cost=0.15..8.17 rows=1 width=186) (actual time=0.008..0.008 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_11_user_id_created_at_idx on orders_p_2026_11 orders_partitioned_5  (cost=0.15..8.17 rows=1 width=186) (actual time=0.016..0.016 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_12_user_id_created_at_idx on orders_p_2026_12 orders_partitioned_6  (cost=0.15..8.17 rows=1 width=186) (actual time=0.037..0.037 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_default_user_id_created_at_idx on orders_p_default orders_partitioned_7  (cost=0.12..8.14 rows=1 width=186) (actual time=0.027..0.027 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=27
+ Planning Time: 0.471 ms
+ Execution Time: 0.366 ms
+(30 rows)
+
+Time: 1.235 ms
+                                                                                            QUERY PLAN                                                                                             
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1.92..18.43 rows=20 width=63) (actual time=0.045..0.120 rows=20 loops=1)
+   Buffers: shared hit=40
+   ->  Merge Append  (cost=1.92..19777.76 rows=23956 width=63) (actual time=0.044..0.118 rows=20 loops=1)
+         Sort Key: orders_partitioned.created_at DESC
+         Buffers: shared hit=40
+         ->  Index Scan using orders_p_2026_07_user_id_created_at_idx on orders_p_2026_07 orders_partitioned_1  (cost=0.42..8320.35 rows=10514 width=63) (actual time=0.013..0.013 rows=1 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_08_user_id_created_at_idx on orders_p_2026_08 orders_partitioned_2  (cost=0.42..8306.53 rows=10153 width=63) (actual time=0.007..0.007 rows=1 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=4
+         ->  Index Scan using orders_p_2026_09_user_id_created_at_idx on orders_p_2026_09 orders_partitioned_3  (cost=0.42..2662.08 rows=3285 width=63) (actual time=0.007..0.077 rows=20 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=24
+         ->  Index Scan using orders_p_2026_10_user_id_created_at_idx on orders_p_2026_10 orders_partitioned_4  (cost=0.15..8.17 rows=1 width=186) (actual time=0.004..0.004 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_11_user_id_created_at_idx on orders_p_2026_11 orders_partitioned_5  (cost=0.15..8.17 rows=1 width=186) (actual time=0.005..0.005 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_2026_12_user_id_created_at_idx on orders_p_2026_12 orders_partitioned_6  (cost=0.15..8.17 rows=1 width=186) (actual time=0.005..0.005 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+         ->  Index Scan using orders_p_default_user_id_created_at_idx on orders_p_default orders_partitioned_7  (cost=0.12..8.14 rows=1 width=186) (actual time=0.003..0.004 rows=0 loops=1)
+               Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND (created_at >= '2026-07-01 00:00:00+00'::timestamp with time zone))
+               Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=27
+ Planning Time: 0.206 ms
+ Execution Time: 0.195 ms
+(30 rows)
+
+Time: 0.806 ms

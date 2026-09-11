@@ -1,0 +1,187 @@
+Timing is on.
+SET
+Time: 0.112 ms
+DROP TABLE
+Time: 0.538 ms
+### 4.1 Разделение по категориям
+psql:/tmp/p3.sql:8: NOTICE:  table "customers" does not exist, skipping
+CREATE TABLE
+Time: 1.945 ms
+CREATE TABLE
+Time: 2.579 ms
+CREATE TABLE
+Time: 3.283 ms
+CREATE TABLE
+Time: 1.792 ms
+### 4.2 Данные: реалистичный перекос 1 000 000 / 150 000 / 20 000
+INSERT 0 1000000
+Time: 610.874 ms
+INSERT 0 150000
+Time: 90.991 ms
+INSERT 0 20000
+Time: 14.196 ms
+ANALYZE
+Time: 141.160 ms
+    partition_name    |  count  
+----------------------+---------
+ customers_b2c        | 1000000
+ customers_b2b        |  150000
+ customers_enterprise |   20000
+(3 rows)
+
+Time: 33.777 ms
+### 4.3 Задание: SELECT * FROM customers WHERE customer_type = 'B2B'
+                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Seq Scan on customers_b2b customers  (cost=0.00..2978.00 rows=150000 width=29) (actual time=0.004..7.493 rows=150000 loops=1)
+   Filter: ((customer_type)::text = 'B2B'::text)
+   Buffers: shared hit=1103
+ Planning:
+   Buffers: shared hit=9
+ Planning Time: 0.052 ms
+ Execution Time: 10.330 ms
+(7 rows)
+
+Time: 11.441 ms
+### 4.4 Несколько категорий сразу: IN (...) тоже отсекает
+                                                                                 QUERY PLAN                                                                                 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=4228.42..4229.18 rows=3 width=13) (actual time=11.780..14.286 rows=2 loops=1)
+   Group Key: customers.customer_type
+   Buffers: shared hit=1292
+   ->  Gather Merge  (cost=4228.42..4229.12 rows=6 width=13) (actual time=11.773..14.280 rows=5 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=1292
+         ->  Sort  (cost=3228.39..3228.40 rows=3 width=13) (actual time=10.484..10.485 rows=2 loops=3)
+               Sort Key: customers.customer_type
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=1292
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=3228.34..3228.37 rows=3 width=13) (actual time=10.468..10.469 rows=2 loops=3)
+                     Group Key: customers.customer_type
+                     Batches: 1  Memory Usage: 24kB
+                     Buffers: shared hit=1276
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Append  (cost=0.00..2874.17 rows=70834 width=5) (actual time=0.009..6.493 rows=56667 loops=3)
+                           Buffers: shared hit=1276
+                           ->  Parallel Seq Scan on customers_b2b customers_1  (cost=0.00..2205.94 rows=88235 width=4) (actual time=0.009..3.733 rows=50000 loops=3)
+                                 Filter: ((customer_type)::text = ANY ('{B2B,Enterprise}'::text[]))
+                                 Buffers: shared hit=1106
+                           ->  Parallel Seq Scan on customers_enterprise customers_2  (cost=0.00..314.06 rows=11765 width=11) (actual time=0.007..0.716 rows=10000 loops=2)
+                                 Filter: ((customer_type)::text = ANY ('{B2B,Enterprise}'::text[]))
+                                 Buffers: shared hit=170
+ Planning:
+   Buffers: shared hit=12
+ Planning Time: 0.077 ms
+ Execution Time: 14.321 ms
+(31 rows)
+
+Time: 15.081 ms
+### 5.1 Вставка значения, для которого партиции нет
+psql:/tmp/p3.sql:46: ERROR:  no partition of relation "customers" found for row
+DETAIL:  Partition key of the failing row contains (customer_type) = (VIP).
+Time: 0.506 ms
+### 5.2 Создаём DEFAULT-партицию и повторяем вставку
+CREATE TABLE
+Time: 4.643 ms
+INSERT 0 1
+Time: 0.871 ms
+ id  |   name    | customer_type |     landed_in     
+-----+-----------+---------------+-------------------
+ 100 | Test User | VIP           | customers_default
+(1 row)
+
+Time: 0.723 ms
+### 5.3 Цена DEFAULT №1: запрос по значению из DEFAULT читает DEFAULT
+                                                       QUERY PLAN                                                       
+------------------------------------------------------------------------------------------------------------------------
+ Seq Scan on customers_default customers  (cost=0.00..16.88 rows=3 width=118) (actual time=0.029..0.029 rows=1 loops=1)
+   Filter: ((customer_type)::text = 'VIP'::text)
+   Buffers: shared hit=1
+ Planning Time: 0.051 ms
+ Execution Time: 0.044 ms
+(5 rows)
+
+Time: 0.294 ms
+### 5.4 Проверка: запрос по явно перечисленному типу DEFAULT не трогает
+                                                             QUERY PLAN                                                              
+-------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=3353.00..3353.01 rows=1 width=8) (actual time=16.602..16.603 rows=1 loops=1)
+   Buffers: shared hit=1103
+   ->  Seq Scan on customers_b2b customers  (cost=0.00..2978.00 rows=150000 width=0) (actual time=0.005..11.390 rows=150000 loops=1)
+         Filter: ((customer_type)::text = 'B2B'::text)
+         Buffers: shared hit=1103
+ Planning Time: 0.034 ms
+ Execution Time: 16.619 ms
+(7 rows)
+
+Time: 16.836 ms
+### 5.5 Цена DEFAULT №2: наполним DEFAULT — так бывает, если о новом типе не знали
+INSERT 0 500000
+Time: 449.127 ms
+ANALYZE
+Time: 294.491 ms
+    partition_name    |  count  
+----------------------+---------
+ customers_b2c        | 1000000
+ customers_b2b        |  150000
+ customers_enterprise |   20000
+ customers_default    |  500001
+(4 rows)
+
+Time: 43.285 ms
+### 5.6 Попытка «узаконить» тип VIP отдельной партицией
+psql:/tmp/p3.sql:73: ERROR:  updated partition constraint for default partition "customers_default" would be violated by some row
+Time: 0.680 ms
+### 5.7 Правильная процедура: вынести строки из DEFAULT и присоединить партицию
+BEGIN
+Time: 0.037 ms
+ALTER TABLE
+Time: 0.214 ms
+CREATE TABLE
+Time: 1.533 ms
+INSERT 0 500001
+Time: 249.905 ms
+DELETE 500001
+Time: 138.000 ms
+ALTER TABLE
+Time: 24.354 ms
+ALTER TABLE
+Time: 10.344 ms
+COMMIT
+Time: 13.277 ms
+ANALYZE
+Time: 174.945 ms
+    partition_name    |  count  
+----------------------+---------
+ customers_b2c        | 1000000
+ customers_b2b        |  150000
+ customers_enterprise |   20000
+ customers_vip        |  500001
+(4 rows)
+
+Time: 44.484 ms
+### 5.8 После переноса запрос по VIP снова читает одну партицию
+                                                                        QUERY PLAN                                                                        
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=7802.22..7802.23 rows=1 width=8) (actual time=16.116..17.916 rows=1 loops=1)
+   Buffers: shared hit=3677
+   ->  Gather  (cost=7802.01..7802.22 rows=2 width=8) (actual time=16.060..17.913 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=3677
+         ->  Partial Aggregate  (cost=6802.01..6802.02 rows=1 width=8) (actual time=14.756..14.756 rows=1 loops=3)
+               Buffers: shared hit=3677
+               ->  Parallel Seq Scan on customers_vip customers  (cost=0.00..6281.17 rows=208334 width=0) (actual time=0.008..10.548 rows=166667 loops=3)
+                     Filter: ((customer_type)::text = 'VIP'::text)
+                     Buffers: shared hit=3677
+ Planning:
+   Buffers: shared hit=3
+ Planning Time: 0.056 ms
+ Execution Time: 17.926 ms
+(15 rows)
+
+Time: 18.125 ms

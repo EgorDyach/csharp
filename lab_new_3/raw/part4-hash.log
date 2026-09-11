@@ -1,0 +1,147 @@
+Timing is on.
+SET
+Time: 0.129 ms
+DROP TABLE
+Time: 0.627 ms
+psql:/tmp/p4.sql:8: NOTICE:  table "user_events" does not exist, skipping
+### 6.1 Равномерное распределение по user_id
+CREATE TABLE
+Time: 5.041 ms
+CREATE TABLE
+Time: 1.123 ms
+CREATE TABLE
+Time: 0.538 ms
+CREATE TABLE
+Time: 0.518 ms
+CREATE TABLE
+Time: 0.773 ms
+### 6.2 Загрузка 4 000 000 событий на 200 000 пользователей
+INSERT 0 4000000
+Time: 2992.779 ms (00:02.993)
+ANALYZE
+Time: 445.059 ms
+### 6.3 Насколько равномерно распределились данные
+ partition_name |  count  |  pct   
+----------------+---------+--------
+ user_events_0  |  996428 | 24.911
+ user_events_1  | 1004794 | 25.120
+ user_events_2  |  997361 | 24.934
+ user_events_3  | 1001417 | 25.035
+(4 rows)
+
+Time: 131.700 ms
+### 6.4 Размеры партиций
+    relname    | total_size 
+---------------+------------
+ user_events_0 | 60 MB
+ user_events_1 | 60 MB
+ user_events_2 | 60 MB
+ user_events_3 | 60 MB
+(4 rows)
+
+Time: 11.456 ms
+### 6.5 HASH отсекает только при равенстве по ключу
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=13863.97..13863.98 rows=1 width=8) (actual time=25.007..28.281 rows=1 loops=1)
+   Buffers: shared hit=3980 read=3694 written=82
+   ->  Gather  (cost=13863.75..13863.96 rows=2 width=8) (actual time=24.952..28.278 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=3980 read=3694 written=82
+         ->  Partial Aggregate  (cost=12863.75..12863.76 rows=1 width=8) (actual time=18.761..18.761 rows=1 loops=3)
+               Buffers: shared hit=3980 read=3694 written=82
+               ->  Parallel Seq Scan on user_events_0 user_events  (cost=0.00..12863.73 rows=9 width=0) (actual time=6.516..18.756 rows=6 loops=3)
+                     Filter: (user_id = 12345)
+                     Rows Removed by Filter: 332137
+                     Buffers: shared hit=3980 read=3694 written=82
+ Planning:
+   Buffers: shared hit=11
+ Planning Time: 0.089 ms
+ Execution Time: 28.301 ms
+(16 rows)
+
+Time: 28.598 ms
+### 6.6 ...а диапазон по ключу отсечь нельзя: hash не сохраняет порядок
+                                                                           QUERY PLAN                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=56861.61..56861.62 rows=1 width=8) (actual time=61.598..67.494 rows=1 loops=1)
+   Buffers: shared hit=16018 read=14785 written=72
+   ->  Gather  (cost=56861.39..56861.60 rows=2 width=8) (actual time=61.356..67.474 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=16018 read=14785 written=72
+         ->  Partial Aggregate  (cost=55861.39..55861.40 rows=1 width=8) (actual time=54.308..54.309 rows=1 loops=3)
+               Buffers: shared hit=16018 read=14785 written=72
+               ->  Parallel Append  (cost=0.00..55841.93 rows=7786 width=0) (actual time=0.038..54.005 rows=6658 loops=3)
+                     Buffers: shared hit=16018 read=14785 written=72
+                     ->  Parallel Seq Scan on user_events_1 user_events_2  (cost=0.00..14017.96 rows=1922 width=0) (actual time=0.025..40.204 rows=4764 loops=1)
+                           Filter: ((user_id >= 1) AND (user_id <= 1000))
+                           Rows Removed by Filter: 1000030
+                           Buffers: shared hit=3983 read=3755
+                     ->  Parallel Seq Scan on user_events_3 user_events_4  (cost=0.00..13969.86 rows=1852 width=0) (actual time=0.026..16.838 rows=1525 loops=3)
+                           Filter: ((user_id >= 1) AND (user_id <= 1000))
+                           Rows Removed by Filter: 332281
+                           Buffers: shared hit=4031 read=3680
+                     ->  Parallel Seq Scan on user_events_2 user_events_3  (cost=0.00..13913.51 rows=2062 width=0) (actual time=0.023..18.667 rows=2766 loops=2)
+                           Filter: ((user_id >= 1) AND (user_id <= 1000))
+                           Rows Removed by Filter: 495915
+                           Buffers: shared hit=3928 read=3752 written=40
+                     ->  Parallel Seq Scan on user_events_0 user_events_1  (cost=0.00..13901.67 rows=1950 width=0) (actual time=0.022..32.999 rows=5105 loops=1)
+                           Filter: ((user_id >= 1) AND (user_id <= 1000))
+                           Rows Removed by Filter: 991323
+                           Buffers: shared hit=4076 read=3598 written=32
+ Planning:
+   Buffers: shared hit=37 read=2 written=2
+ Planning Time: 1.349 ms
+ Execution Time: 67.522 ms
+(30 rows)
+
+Time: 69.111 ms
+### 6.7 Почему HASH плох для «удалить старше 3 лет»
+ partition_name | older_than_3y |  total  
+----------------+---------------+---------
+ user_events_0  |        248178 |  996428
+ user_events_1  |        250066 | 1004794
+ user_events_2  |        248522 |  997361
+ user_events_3  |        249300 | 1001417
+(4 rows)
+
+Time: 225.252 ms
+                                                                    QUERY PLAN                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Delete on user_events  (cost=0.00..105785.71 rows=0 width=0) (actual time=868.423..868.424 rows=0 loops=1)
+   Delete on user_events_0 user_events_1
+   Delete on user_events_1 user_events_2
+   Delete on user_events_2 user_events_3
+   Delete on user_events_3 user_events_4
+   Buffers: shared hit=999732 read=27137 dirtied=27425 written=26244
+   ->  Append  (cost=0.00..105785.71 rows=996543 width=10) (actual time=3.828..673.155 rows=996066 loops=1)
+         Buffers: shared hit=3666 read=27137 written=26244
+         ->  Seq Scan on user_events_0 user_events_1  (cost=0.00..25111.49 rows=247958 width=10) (actual time=3.827..119.715 rows=248178 loops=1)
+               Filter: (created_at < (now() - '3 years'::interval))
+               Rows Removed by Filter: 748250
+               Buffers: shared hit=2956 read=4718 written=4604
+         ->  Seq Scan on user_events_1 user_events_2  (cost=0.00..25321.90 rows=248459 width=10) (actual time=0.034..137.220 rows=250066 loops=1)
+               Filter: (created_at < (now() - '3 years'::interval))
+               Rows Removed by Filter: 754728
+               Buffers: shared hit=710 read=7028 written=6472
+         ->  Seq Scan on user_events_2 user_events_3  (cost=0.00..25133.82 rows=249588 width=10) (actual time=0.048..150.624 rows=248522 loops=1)
+               Filter: (created_at < (now() - '3 years'::interval))
+               Rows Removed by Filter: 748839
+               Buffers: shared read=7680 written=7569
+         ->  Seq Scan on user_events_3 user_events_4  (cost=0.00..25235.80 rows=250538 width=10) (actual time=0.031..225.237 rows=249300 loops=1)
+               Filter: (created_at < (now() - '3 years'::interval))
+               Rows Removed by Filter: 752117
+               Buffers: shared read=7711 written=7599
+ Planning:
+   Buffers: shared hit=2 read=1
+ Planning Time: 0.142 ms
+ JIT:
+   Functions: 12
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.396 ms, Inlining 0.000 ms, Optimization 0.200 ms, Emission 3.675 ms, Total 4.270 ms
+ Execution Time: 872.227 ms
+(32 rows)
+
+Time: 882.490 ms

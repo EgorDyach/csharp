@@ -1,0 +1,126 @@
+using System.Text;
+using Microsoft.Extensions.Options;
+
+namespace ChakChakShop.API.Services.Partitioning;
+
+/// <summary>
+/// Ночная job: держит горизонт будущих партиций.
+///
+///   определить текущий период
+///        -> определить требуемый горизонт
+///        -> получить существующие партиции
+///        -> найти отсутствующие
+///        -> создать их
+///
+/// Повторный запуск безопасен: создание идёт через CREATE TABLE IF NOT EXISTS
+/// под advisory-lock, поэтому ни ручной вызов, ни второй экземпляр сервиса
+/// ничего не сломают.
+/// </summary>
+public class CreatePartitionsJob : BackgroundService
+{
+    private readonly IPartitionManager _partitionManager;
+    private readonly PartitionOptions _options;
+    private readonly ILogger<CreatePartitionsJob> _logger;
+
+    public CreatePartitionsJob(
+        IPartitionManager partitionManager,
+        IOptions<PartitionOptions> options,
+        ILogger<CreatePartitionsJob> logger)
+    {
+        _partitionManager = partitionManager;
+        _options = options.Value;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (!_options.Enabled)
+        {
+            _logger.LogInformation("Partition automation is disabled");
+            return;
+        }
+
+        // Один прогон на старте: если сервис поднимают после простоя,
+        // горизонт должен восстановиться сразу, а не в час ночи.
+        await RunOnceAsync(stoppingToken);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            var delay = TimeUntilNextRun(DateTime.UtcNow);
+            _logger.LogInformation("Next partition job run in {Delay}", delay);
+
+            try
+            {
+                await Task.Delay(delay, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            await RunOnceAsync(stoppingToken);
+        }
+    }
+
+    private async Task RunOnceAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var report = await _partitionManager.EnsurePartitionsAsync(cancellationToken);
+
+            // Отчёт печатается одним блоком: на защите его читают целиком,
+            // а не собирают из разбросанных по логу строк.
+            var log = new StringBuilder();
+            log.AppendLine("Partition job started.").AppendLine();
+            log.AppendLine($"Existing partitions: {report.ExistingCount}");
+            log.AppendLine($"Required partitions: {report.RequiredCount}");
+            log.AppendLine($"Missing partitions: {report.MissingCount}");
+
+            if (report.Created.Count > 0)
+            {
+                log.AppendLine().AppendLine("Creating:");
+                foreach (var created in report.Created)
+                {
+                    log.AppendLine($"{created.Partition}  [{created.From:yyyy-MM-dd} .. {created.To:yyyy-MM-dd})");
+                }
+
+                log.AppendLine().AppendLine("Partition created successfully.");
+            }
+
+            foreach (var error in report.Errors)
+            {
+                log.AppendLine().AppendLine($"FAILED: {error}");
+            }
+
+            log.AppendLine().AppendLine(
+                $"Partition job finished in {(report.FinishedAt - report.StartedAt).TotalMilliseconds:F0} ms.");
+
+            if (report.Success)
+            {
+                _logger.LogInformation("{Report}", log.ToString());
+            }
+            else
+            {
+                _logger.LogError("{Report}", log.ToString());
+            }
+
+        }
+        catch (Exception ex)
+        {
+            // Упавшая job не должна ронять сервис: о проблеме всё равно
+            // сообщит PartitionHealthCheck, когда горизонт кончится.
+            _logger.LogError(ex, "Partition job crashed");
+        }
+    }
+
+    private TimeSpan TimeUntilNextRun(DateTime now)
+    {
+        var next = now.Date + _options.CreateJobTimeOfDay;
+        if (next <= now)
+        {
+            next = next.AddDays(1);
+        }
+
+        return next - now;
+    }
+}

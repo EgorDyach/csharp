@@ -1,0 +1,259 @@
+Timing is on.
+SET
+Time: 0.667 ms
+### 8.0 Базовая линия: запрос по user_id без индексов
+                                                                                    QUERY PLAN                                                                                    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..17776.60 rows=11 width=45) (actual time=0.760..97.676 rows=10 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared read=9481
+   ->  Parallel Seq Scan on events_2026_09_10 events  (cost=0.00..16775.50 rows=5 width=45) (actual time=32.888..92.444 rows=3 loops=3)
+         Filter: ((created_at >= '2026-09-10 00:00:00'::timestamp without time zone) AND (created_at < '2026-09-11 00:00:00'::timestamp without time zone) AND (user_id = 12345))
+         Rows Removed by Filter: 333459
+         Buffers: shared read=9481
+ Planning:
+   Buffers: shared hit=114 read=10 dirtied=1
+ Planning Time: 3.024 ms
+ Execution Time: 97.767 ms
+(12 rows)
+
+Time: 106.091 ms
+### 8.1 Индекс создаётся на РОДИТЕЛЬСКОЙ таблице
+CREATE INDEX
+Time: 861.393 ms
+### 8.2 ...а физически появляется в каждой партиции (локальные индексы)
+          index_name           | relkind |     on_table      |  size   
+-------------------------------+---------+-------------------+---------
+ events_2026_09_09_user_id_idx | i       | events_2026_09_09 | 9088 kB
+ events_2026_09_10_user_id_idx | i       | events_2026_09_10 | 9088 kB
+ events_2026_09_11_user_id_idx | i       | events_2026_09_11 | 9080 kB
+ idx_events_user_id            | I       | events            | 0 bytes
+(4 rows)
+
+Time: 10.095 ms
+    parent_index    |          child_index          
+--------------------+-------------------------------
+ idx_events_user_id | events_2026_09_09_user_id_idx
+ idx_events_user_id | events_2026_09_10_user_id_idx
+ idx_events_user_id | events_2026_09_11_user_id_idx
+(3 rows)
+
+Time: 0.928 ms
+### 8.3 Задание: pruning + индекс вместе
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events_2026_09_10 events  (cost=4.51..47.58 rows=11 width=45) (actual time=0.055..0.134 rows=10 loops=1)
+   Recheck Cond: (user_id = 12345)
+   Filter: ((created_at >= '2026-09-10 00:00:00'::timestamp without time zone) AND (created_at < '2026-09-11 00:00:00'::timestamp without time zone))
+   Heap Blocks: exact=10
+   Buffers: shared hit=3 read=13
+   ->  Bitmap Index Scan on events_2026_09_10_user_id_idx  (cost=0.00..4.51 rows=11 width=0) (actual time=0.041..0.041 rows=10 loops=1)
+         Index Cond: (user_id = 12345)
+         Buffers: shared hit=3 read=3
+ Planning:
+   Buffers: shared hit=19 read=1
+ Planning Time: 0.142 ms
+ Execution Time: 0.198 ms
+(12 rows)
+
+Time: 0.462 ms
+### 8.4 Тот же индекс без ограничения по ключу партиционирования
+                                                                  QUERY PLAN                                                                  
+----------------------------------------------------------------------------------------------------------------------------------------------
+ Append  (cost=4.51..142.74 rows=33 width=45) (actual time=0.063..0.851 rows=35 loops=1)
+   Buffers: shared hit=14 read=30
+   ->  Bitmap Heap Scan on events_2026_09_09 events_1  (cost=4.51..47.52 rows=11 width=45) (actual time=0.063..0.337 rows=13 loops=1)
+         Recheck Cond: (user_id = 12345)
+         Heap Blocks: exact=13
+         Buffers: shared read=16
+         ->  Bitmap Index Scan on events_2026_09_09_user_id_idx  (cost=0.00..4.51 rows=11 width=0) (actual time=0.047..0.047 rows=13 loops=1)
+               Index Cond: (user_id = 12345)
+               Buffers: shared read=3
+   ->  Bitmap Heap Scan on events_2026_09_10 events_2  (cost=4.51..47.52 rows=11 width=45) (actual time=0.011..0.017 rows=10 loops=1)
+         Recheck Cond: (user_id = 12345)
+         Heap Blocks: exact=10
+         Buffers: shared hit=13
+         ->  Bitmap Index Scan on events_2026_09_10_user_id_idx  (cost=0.00..4.51 rows=11 width=0) (actual time=0.010..0.010 rows=10 loops=1)
+               Index Cond: (user_id = 12345)
+               Buffers: shared hit=3
+   ->  Bitmap Heap Scan on events_2026_09_11 events_3  (cost=4.51..47.52 rows=11 width=45) (actual time=0.144..0.492 rows=12 loops=1)
+         Recheck Cond: (user_id = 12345)
+         Heap Blocks: exact=12
+         Buffers: shared hit=1 read=14
+         ->  Bitmap Index Scan on events_2026_09_11_user_id_idx  (cost=0.00..4.51 rows=11 width=0) (actual time=0.066..0.066 rows=12 loops=1)
+               Index Cond: (user_id = 12345)
+               Buffers: shared read=3
+ Planning:
+   Buffers: shared hit=50 read=2
+ Planning Time: 0.272 ms
+ Execution Time: 0.911 ms
+(27 rows)
+
+Time: 1.505 ms
+### 9.1 Запрос не по ключу партиционирования: ДО индекса
+                                                                            QUERY PLAN                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=46925.59..46925.60 rows=1 width=8) (actual time=71.570..72.907 rows=1 loops=1)
+   Buffers: shared hit=322 read=28112
+   ->  Gather  (cost=46925.38..46925.59 rows=2 width=8) (actual time=71.491..72.904 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=322 read=28112
+         ->  Partial Aggregate  (cost=45925.38..45925.39 rows=1 width=8) (actual time=69.551..69.552 rows=1 loops=3)
+               Buffers: shared hit=322 read=28112
+               ->  Parallel Append  (cost=0.00..45303.26 rows=248848 width=0) (actual time=0.022..63.800 rows=200162 loops=3)
+                     Buffers: shared hit=322 read=28112
+                     ->  Parallel Seq Scan on events_2026_09_09 events_1  (cost=0.00..14696.85 rows=82848 width=0) (actual time=0.022..19.383 rows=66721 loops=3)
+                           Filter: ((event_type)::text = 'click'::text)
+                           Rows Removed by Filter: 266837
+                           Buffers: shared hit=77 read=9408
+                     ->  Parallel Seq Scan on events_2026_09_10 events_2  (cost=0.00..14691.35 rows=83102 width=0) (actual time=0.018..27.574 rows=100028 loops=2)
+                           Filter: ((event_type)::text = 'click'::text)
+                           Rows Removed by Filter: 400166
+                           Buffers: shared hit=170 read=9311
+                     ->  Parallel Seq Scan on events_2026_09_11 events_3  (cost=0.00..14670.81 rows=82898 width=0) (actual time=0.015..53.695 rows=200268 loops=1)
+                           Filter: ((event_type)::text = 'click'::text)
+                           Rows Removed by Filter: 798672
+                           Buffers: shared hit=75 read=9393
+ Planning:
+   Buffers: shared hit=13 read=1
+ Planning Time: 0.233 ms
+ Execution Time: 72.923 ms
+(26 rows)
+
+Time: 74.889 ms
+### 9.2 Создаём индекс по event_type
+CREATE INDEX
+Time: 805.302 ms
+ANALYZE
+Time: 448.354 ms
+### 9.3 ПОСЛЕ индекса
+                                                                                                   QUERY PLAN                                                                                                   
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=12948.42..12948.43 rows=1 width=8) (actual time=31.702..33.042 rows=1 loops=1)
+   Buffers: shared hit=8 read=514
+   ->  Gather  (cost=12948.21..12948.42 rows=2 width=8) (actual time=31.648..33.039 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=8 read=514
+         ->  Partial Aggregate  (cost=11948.21..11948.22 rows=1 width=8) (actual time=29.483..29.484 rows=1 loops=3)
+               Buffers: shared hit=8 read=514
+               ->  Parallel Append  (cost=0.42..11323.55 rows=249862 width=0) (actual time=0.045..22.604 rows=200162 loops=3)
+                     Buffers: shared hit=8 read=514
+                     ->  Parallel Index Only Scan using events_2026_09_10_event_type_idx on events_2026_09_10 events_2  (cost=0.42..3390.92 rows=118791 width=0) (actual time=0.038..6.608 rows=66685 loops=3)
+                           Index Cond: (event_type = 'click'::text)
+                           Heap Fetches: 0
+                           Buffers: shared hit=4 read=172
+                     ->  Parallel Index Only Scan using events_2026_09_11_event_type_idx on events_2026_09_11 events_3  (cost=0.42..3346.48 rows=117189 width=0) (actual time=0.031..6.246 rows=100134 loops=2)
+                           Index Cond: (event_type = 'click'::text)
+                           Heap Fetches: 0
+                           Buffers: shared hit=3 read=171
+                     ->  Parallel Index Only Scan using events_2026_09_09_event_type_idx on events_2026_09_09 events_1  (cost=0.42..3336.84 rows=116765 width=0) (actual time=0.037..9.117 rows=200164 loops=1)
+                           Index Cond: (event_type = 'click'::text)
+                           Heap Fetches: 0
+                           Buffers: shared hit=1 read=171
+ Planning:
+   Buffers: shared hit=34 read=3
+ Planning Time: 0.250 ms
+ Execution Time: 33.087 ms
+(26 rows)
+
+Time: 33.758 ms
+### 9.4 Низкоселективный запрос индексом не лечится, лечится покрытием
+CREATE INDEX
+Time: 945.412 ms
+ANALYZE
+Time: 298.237 ms
+                                                                                                   QUERY PLAN                                                                                                   
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=12951.65..12951.66 rows=1 width=8) (actual time=23.538..24.988 rows=1 loops=1)
+   Buffers: shared hit=521 read=1
+   ->  Gather  (cost=12951.44..12951.65 rows=2 width=8) (actual time=23.476..24.984 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=521 read=1
+         ->  Partial Aggregate  (cost=11951.44..11951.45 rows=1 width=8) (actual time=21.997..21.998 rows=1 loops=3)
+               Buffers: shared hit=521 read=1
+               ->  Parallel Append  (cost=0.42..11326.58 rows=249943 width=0) (actual time=0.022..16.626 rows=200162 loops=3)
+                     Buffers: shared hit=521 read=1
+                     ->  Parallel Index Only Scan using events_2026_09_11_event_type_idx on events_2026_09_11 events_3  (cost=0.42..3390.13 rows=118756 width=0) (actual time=0.015..2.935 rows=66756 loops=3)
+                           Index Cond: (event_type = 'click'::text)
+                           Heap Fetches: 0
+                           Buffers: shared hit=175 read=1
+                     ->  Parallel Index Only Scan using events_2026_09_10_event_type_idx on events_2026_09_10 events_2  (cost=0.42..3351.23 rows=117398 width=0) (actual time=0.023..4.312 rows=100028 loops=2)
+                           Index Cond: (event_type = 'click'::text)
+                           Heap Fetches: 0
+                           Buffers: shared hit=174
+                     ->  Parallel Index Only Scan using events_2026_09_09_event_type_idx on events_2026_09_09 events_1  (cost=0.42..3335.50 rows=116706 width=0) (actual time=0.013..8.343 rows=200164 loops=1)
+                           Index Cond: (event_type = 'click'::text)
+                           Heap Fetches: 0
+                           Buffers: shared hit=172
+ Planning:
+   Buffers: shared hit=35 read=3
+ Planning Time: 0.265 ms
+ Execution Time: 25.145 ms
+(26 rows)
+
+Time: 25.685 ms
+### 9.5 А вот селективный event_type индексом лечится отлично
+ event_type | count  
+------------+--------
+ logout     | 600582
+ click      | 600487
+ view       | 600366
+ signup     | 599792
+ purchase   | 598773
+ probe      |      3
+(6 rows)
+
+Time: 78.643 ms
+INSERT 0 300
+Time: 11.519 ms
+ANALYZE
+Time: 521.402 ms
+                                                                                          QUERY PLAN                                                                                          
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=36.09..36.10 rows=1 width=8) (actual time=0.273..0.273 rows=1 loops=1)
+   Buffers: shared hit=305 read=6
+   ->  Append  (cost=0.42..35.75 rows=135 width=0) (actual time=0.048..0.263 rows=300 loops=1)
+         Buffers: shared hit=305 read=6
+         ->  Index Only Scan using events_2026_09_09_event_type_created_at_idx on events_2026_09_09 events_1  (cost=0.42..4.44 rows=1 width=0) (actual time=0.027..0.027 rows=0 loops=1)
+               Index Cond: (event_type = 'refund'::text)
+               Heap Fetches: 0
+               Buffers: shared read=3
+         ->  Index Only Scan using events_2026_09_10_event_type_created_at_idx on events_2026_09_10 events_2  (cost=0.42..26.19 rows=133 width=0) (actual time=0.020..0.184 rows=300 loops=1)
+               Index Cond: (event_type = 'refund'::text)
+               Heap Fetches: 300
+               Buffers: shared hit=305
+         ->  Index Only Scan using events_2026_09_11_event_type_created_at_idx on events_2026_09_11 events_3  (cost=0.42..4.44 rows=1 width=0) (actual time=0.039..0.039 rows=0 loops=1)
+               Index Cond: (event_type = 'refund'::text)
+               Heap Fetches: 0
+               Buffers: shared read=3
+ Planning:
+   Buffers: shared hit=49
+ Planning Time: 0.314 ms
+ Execution Time: 0.299 ms
+(20 rows)
+
+Time: 0.914 ms
+### 9.6 Размер индексов против размера данных
+ heap_total | indexes_total 
+------------+---------------
+ 222 MB     | 142 MB
+(1 row)
+
+Time: 2.093 ms
+### 9.7 Чего индекс не умеет, а партиция умеет: мгновенное удаление
+CREATE TABLE
+Time: 7.986 ms
+INSERT 0 1000000
+Time: 1859.358 ms (00:01.859)
+ dropping_this 
+---------------
+ 121 MB
+(1 row)
+
+Time: 1.771 ms
+DROP TABLE
+Time: 12.835 ms
