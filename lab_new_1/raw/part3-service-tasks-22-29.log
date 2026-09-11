@@ -1,0 +1,402 @@
+
+================================================================
+ ЗАДАНИЕ 22. Scaling Entity: таблица orders
+================================================================
+ table_name  | approx_rows |    heap    | indexes | total  
+-------------+-------------+------------+---------+--------
+ order_items |     2000005 | 178 MB     | 151 MB  | 329 MB
+ orders      |     1000003 | 85 MB      | 126 MB  | 212 MB
+ users       |       50003 | 8168 kB    | 6392 kB | 14 MB
+ products    |           7 | 8192 bytes | 32 kB   | 48 kB
+(4 rows)
+
+--- распределение заказов по пользователям ---
+ total_orders | distinct_users | avg_orders_per_user | max_orders_per_user 
+--------------+----------------+---------------------+---------------------
+      1000003 |          50001 |                20.0 |               50003
+(1 row)
+
+--- распределение по статусам ---
+   status   | count  |  pct  
+------------+--------+-------
+ Pending    | 200674 | 20.07
+ Completed  | 200404 | 20.04
+ Processing | 200372 | 20.04
+ Refunded   | 199731 | 19.97
+ Cancelled  | 198822 | 19.88
+(5 rows)
+
+
+================================================================
+ ПРИВЕДЕНИЕ К СОСТОЯНИЮ «КАК В ПРОЕКТЕ»
+================================================================
+EF Core создаёт для orders только PK и индекс по внешнему ключу user_id.
+DROP INDEX
+DROP INDEX
+psql:<stdin>:47: NOTICE:  index "IX_orders_user_id_status_created_at" does not exist, skipping
+DROP INDEX
+ANALYZE
+ANALYZE
+     indexname     |                                indexdef                                 
+-------------------+-------------------------------------------------------------------------
+ IX_orders_user_id | CREATE INDEX "IX_orders_user_id" ON public.orders USING btree (user_id)
+ PK_orders         | CREATE UNIQUE INDEX "PK_orders" ON public.orders USING btree (id)
+(2 rows)
+
+
+================================================================
+ ЗАДАНИЕ 25. Существующие индексы и статистика их использования
+================================================================
+   relname   |       indexrelname        | idx_scan |  size   | is_unique 
+-------------+---------------------------+----------+---------+-----------
+ users       | PK_users                  | 16200022 | 2096 kB | t
+ orders      | PK_orders                 |  8000038 | 38 MB   | t
+ users       | IX_users_email            |   200002 | 4296 kB | t
+ orders      | IX_orders_user_id         |       95 | 9904 kB | f
+ order_items | PK_order_items            |       20 | 77 MB   | t
+ order_items | IX_order_items_order_id   |        5 | 62 MB   | f
+ order_items | IX_order_items_product_id |        3 | 12 MB   | f
+(7 rows)
+
+
+================================================================
+ ЗАДАНИЕ 23-24. Реальные запросы сервиса и baseline
+================================================================
+
+### Query 1 — GET /api/orders/my
+### DapperOrderRepository.GetByUserIdAsync
+### SELECT ... FROM orders WHERE user_id = @UserId ORDER BY created_at DESC
+--- прогрев ---
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18164.11..18292.44 rows=51333 width=63) (actual time=11.121..13.355 rows=50003 loops=1)
+   Sort Key: created_at DESC
+   Sort Method: external merge  Disk: 3472kB
+   ->  Bitmap Heap Scan on orders  (cost=654.26..12215.92 rows=51333 width=63) (actual time=0.416..3.056 rows=50003 loops=1)
+         Recheck Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Heap Blocks: exact=548
+         ->  Bitmap Index Scan on "IX_orders_user_id"  (cost=0.00..641.42 rows=51333 width=0) (actual time=0.384..0.384 rows=50003 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+ Planning Time: 0.078 ms
+ Execution Time: 14.351 ms
+(10 rows)
+
+--- замер ---
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18164.11..18292.44 rows=51333 width=63) (actual time=9.433..11.610 rows=50003 loops=1)
+   Sort Key: created_at DESC
+   Sort Method: external merge  Disk: 3472kB
+   Buffers: shared hit=590, temp read=434 written=435
+   ->  Bitmap Heap Scan on orders  (cost=654.26..12215.92 rows=51333 width=63) (actual time=0.461..2.457 rows=50003 loops=1)
+         Recheck Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Heap Blocks: exact=548
+         Buffers: shared hit=590
+         ->  Bitmap Index Scan on "IX_orders_user_id"  (cost=0.00..641.42 rows=51333 width=0) (actual time=0.430..0.430 rows=50003 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=42
+ Planning Time: 0.034 ms
+ Execution Time: 12.657 ms
+(13 rows)
+
+
+### Query 2 — GET /api/orders/{id}
+### DapperOrderRepository.GetOrderWithItemsAsync (два запроса)
+                                                     QUERY PLAN                                                      
+---------------------------------------------------------------------------------------------------------------------
+ Index Scan using "PK_orders" on orders  (cost=0.42..8.44 rows=1 width=63) (actual time=0.011..0.011 rows=1 loops=1)
+   Index Cond: (id = 'bbbbbbbb-0000-0000-0000-000000000001'::uuid)
+   Buffers: shared hit=4
+ Planning Time: 0.028 ms
+ Execution Time: 0.017 ms
+(5 rows)
+
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using "IX_order_items_order_id" on order_items  (cost=0.43..12.46 rows=2 width=62) (actual time=0.089..0.090 rows=2 loops=1)
+   Index Cond: (order_id = 'bbbbbbbb-0000-0000-0000-000000000001'::uuid)
+   Buffers: shared read=4
+ Planning:
+   Buffers: shared hit=22 read=3
+ Planning Time: 0.077 ms
+ Execution Time: 0.095 ms
+(7 rows)
+
+
+### Query 3 — GET /api/orders (список для админа)
+### DapperOrderRepository.GetAllAsync — пагинация выполняется В ПАМЯТИ приложения
+### SELECT ... FROM orders ORDER BY created_at DESC   -- без LIMIT!
+                                                             QUERY PLAN                                                              
+-------------------------------------------------------------------------------------------------------------------------------------
+ Gather Merge  (cost=70645.62..167874.94 rows=833336 width=63) (actual time=72.122..185.406 rows=1000003 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=1431 read=9603, temp read=8674 written=8700
+   ->  Sort  (cost=69645.59..70687.26 rows=416668 width=63) (actual time=65.639..93.684 rows=333334 loops=3)
+         Sort Key: created_at DESC
+         Sort Method: external merge  Disk: 25880kB
+         Buffers: shared hit=1431 read=9603, temp read=8674 written=8700
+         Worker 0:  Sort Method: external merge  Disk: 21560kB
+         Worker 1:  Sort Method: external merge  Disk: 21952kB
+         ->  Parallel Seq Scan on orders  (cost=0.00..15086.68 rows=416668 width=63) (actual time=0.008..15.321 rows=333334 loops=3)
+               Buffers: shared hit=1317 read=9603
+ Planning Time: 0.012 ms
+ Execution Time: 206.656 ms
+(14 rows)
+
+
+### Query 4 — «мои заказы в статусе X», фильтрация + сортировка + LIMIT
+--- прогрев ---
+                                                                    QUERY PLAN                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=12604.23..12604.28 rows=20 width=63) (actual time=3.488..3.489 rows=20 loops=1)
+   ->  Sort  (cost=12604.23..12629.62 rows=10157 width=63) (actual time=3.487..3.487 rows=20 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: top-N heapsort  Memory: 29kB
+         ->  Bitmap Heap Scan on orders  (cost=643.96..12333.96 rows=10157 width=63) (actual time=0.420..3.135 rows=10248 loops=1)
+               Recheck Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Filter: ((status)::text = 'Completed'::text)
+               Rows Removed by Filter: 39755
+               Heap Blocks: exact=548
+               ->  Bitmap Index Scan on "IX_orders_user_id"  (cost=0.00..641.42 rows=51333 width=0) (actual time=0.384..0.384 rows=50003 loops=1)
+                     Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+ Planning Time: 0.044 ms
+ Execution Time: 3.503 ms
+(13 rows)
+
+--- замер ---
+                                                                    QUERY PLAN                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=12604.23..12604.28 rows=20 width=63) (actual time=3.074..3.075 rows=20 loops=1)
+   Buffers: shared hit=590
+   ->  Sort  (cost=12604.23..12629.62 rows=10157 width=63) (actual time=3.074..3.074 rows=20 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: top-N heapsort  Memory: 29kB
+         Buffers: shared hit=590
+         ->  Bitmap Heap Scan on orders  (cost=643.96..12333.96 rows=10157 width=63) (actual time=0.362..2.698 rows=10248 loops=1)
+               Recheck Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Filter: ((status)::text = 'Completed'::text)
+               Rows Removed by Filter: 39755
+               Heap Blocks: exact=548
+               Buffers: shared hit=590
+               ->  Bitmap Index Scan on "IX_orders_user_id"  (cost=0.00..641.42 rows=51333 width=0) (actual time=0.335..0.335 rows=50003 loops=1)
+                     Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+                     Buffers: shared hit=42
+ Planning Time: 0.037 ms
+ Execution Time: 3.092 ms
+(17 rows)
+
+
+================================================================
+ ЗАДАНИЕ 26-27. Узкое место и что с ним делать
+================================================================
+Query 3 читает всю таблицу целиком, потому что LIMIT/OFFSET выполняются
+в C#-коде (orders.Skip().Take()), а не в SQL. Проверяем, что даёт
+перенос пагинации в запрос ДО добавления индекса:
+                                                                QUERY PLAN                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=25090.75..25091.92 rows=10 width=63) (actual time=31.964..34.531 rows=10 loops=1)
+   Buffers: shared hit=1527 read=9507
+   ->  Gather Merge  (cost=25090.75..122320.07 rows=833336 width=63) (actual time=31.964..34.530 rows=10 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=1527 read=9507
+         ->  Sort  (cost=24090.72..25132.39 rows=416668 width=63) (actual time=26.497..26.498 rows=8 loops=3)
+               Sort Key: created_at DESC
+               Sort Method: top-N heapsort  Memory: 27kB
+               Buffers: shared hit=1527 read=9507
+               Worker 0:  Sort Method: top-N heapsort  Memory: 27kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 27kB
+               ->  Parallel Seq Scan on orders  (cost=0.00..15086.68 rows=416668 width=63) (actual time=0.012..14.127 rows=333334 loops=3)
+                     Buffers: shared hit=1413 read=9507
+ Planning Time: 0.016 ms
+ Execution Time: 34.543 ms
+(16 rows)
+
+
+================================================================
+ ЗАДАНИЕ 28. Применение миграции 004-performance-indexes.sql
+================================================================
+CREATE INDEX
+CREATE INDEX
+ANALYZE
+         indexrelname         |  size   
+------------------------------+---------
+ IX_orders_user_id_created_at | 39 MB
+ PK_orders                    | 38 MB
+ IX_orders_created_at         | 21 MB
+ IX_orders_user_id            | 9904 kB
+(4 rows)
+
+
+================================================================
+ ЗАДАНИЕ 29. Повторное измерение
+================================================================
+
+### Query 1 ПОСЛЕ — без LIMIT (как сейчас в коде)
+                                                                 QUERY PLAN                                                                 
+--------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18005.51..18131.18 rows=50267 width=63) (actual time=9.586..11.881 rows=50003 loops=1)
+   Sort Key: created_at DESC
+   Sort Method: external merge  Disk: 3472kB
+   Buffers: shared hit=590, temp read=434 written=435
+   ->  Bitmap Heap Scan on orders  (cost=641.99..12190.33 rows=50267 width=63) (actual time=0.412..2.503 rows=50003 loops=1)
+         Recheck Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Heap Blocks: exact=548
+         Buffers: shared hit=590
+         ->  Bitmap Index Scan on "IX_orders_user_id"  (cost=0.00..629.43 rows=50267 width=0) (actual time=0.385..0.385 rows=50003 loops=1)
+               Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+               Buffers: shared hit=42
+ Planning:
+   Buffers: shared hit=26 read=2
+ Planning Time: 0.113 ms
+ Execution Time: 12.950 ms
+(15 rows)
+
+
+### Query 1 ПОСЛЕ — с серверной пагинацией (исправленный код)
+--- прогрев ---
+                                                                      QUERY PLAN                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..18.53 rows=20 width=63) (actual time=0.018..0.031 rows=20 loops=1)
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.42..45511.76 rows=50267 width=63) (actual time=0.017..0.030 rows=20 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+ Planning Time: 0.041 ms
+ Execution Time: 0.040 ms
+(5 rows)
+
+--- замер ---
+                                                                      QUERY PLAN                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..18.53 rows=20 width=63) (actual time=0.015..0.021 rows=20 loops=1)
+   Buffers: shared hit=23
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.42..45511.76 rows=50267 width=63) (actual time=0.015..0.020 rows=20 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=23
+ Planning Time: 0.018 ms
+ Execution Time: 0.026 ms
+(7 rows)
+
+
+### Query 3 ПОСЛЕ — индекс + серверная пагинация
+--- прогрев ---
+                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..1.12 rows=10 width=63) (actual time=0.012..0.033 rows=10 loops=1)
+   ->  Index Scan using "IX_orders_created_at" on orders  (cost=0.42..69660.18 rows=1000003 width=63) (actual time=0.011..0.033 rows=10 loops=1)
+ Planning Time: 0.011 ms
+ Execution Time: 0.038 ms
+(4 rows)
+
+--- замер ---
+                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..1.12 rows=10 width=63) (actual time=0.005..0.008 rows=10 loops=1)
+   Buffers: shared hit=13
+   ->  Index Scan using "IX_orders_created_at" on orders  (cost=0.42..69660.18 rows=1000003 width=63) (actual time=0.005..0.007 rows=10 loops=1)
+         Buffers: shared hit=13
+ Planning Time: 0.014 ms
+ Execution Time: 0.012 ms
+(6 rows)
+
+
+### Query 3 — глубокая страница: цена OFFSET
+                                                                     QUERY PLAN                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=697.02..697.72 rows=10 width=63) (actual time=12.143..12.150 rows=10 loops=1)
+   Buffers: shared hit=4489 read=5549
+   ->  Index Scan using "IX_orders_created_at" on orders  (cost=0.42..69660.18 rows=1000003 width=63) (actual time=0.007..11.972 rows=10010 loops=1)
+         Buffers: shared hit=4489 read=5549
+ Planning Time: 0.016 ms
+ Execution Time: 12.164 ms
+(6 rows)
+
+
+### COUNT(*) для поля TotalCount в PagedResponse
+                                                                                QUERY PLAN                                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=16161.00..16161.01 rows=1 width=8) (actual time=26.091..28.637 rows=1 loops=1)
+   Buffers: shared hit=1234
+   ->  Gather  (cost=16160.79..16161.00 rows=2 width=8) (actual time=26.011..28.634 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=1234
+         ->  Partial Aggregate  (cost=15160.79..15160.80 rows=1 width=8) (actual time=20.391..20.392 rows=1 loops=3)
+               Buffers: shared hit=1234
+               ->  Parallel Index Only Scan using "IX_orders_user_id" on orders  (cost=0.42..14119.12 rows=416668 width=0) (actual time=0.018..12.461 rows=333334 loops=3)
+                     Heap Fetches: 0
+                     Buffers: shared hit=1234
+ Planning Time: 0.031 ms
+ Execution Time: 28.650 ms
+(13 rows)
+
+
+### Query 4 ПОСЛЕ — проверяем, нужен ли отдельный индекс по status
+--- прогрев ---
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..92.41 rows=20 width=63) (actual time=0.014..0.076 rows=20 loops=1)
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.42..45637.42 rows=9923 width=63) (actual time=0.014..0.074 rows=20 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Filter: ((status)::text = 'Completed'::text)
+         Rows Removed by Filter: 57
+ Planning Time: 0.046 ms
+ Execution Time: 0.083 ms
+(7 rows)
+
+--- замер ---
+                                                                      QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..92.41 rows=20 width=63) (actual time=0.008..0.025 rows=20 loops=1)
+   Buffers: shared hit=80
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.42..45637.42 rows=9923 width=63) (actual time=0.008..0.024 rows=20 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Filter: ((status)::text = 'Completed'::text)
+         Rows Removed by Filter: 57
+         Buffers: shared hit=80
+ Planning Time: 0.025 ms
+ Execution Time: 0.032 ms
+(9 rows)
+
+
+--- контрольная проверка: окупился бы третий индекс (user_id, status, created_at)? ---
+CREATE INDEX
+ANALYZE
+ third_index_size 
+------------------
+ 54 MB
+(1 row)
+
+                                                                          QUERY PLAN                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..55.39 rows=20 width=63) (actual time=0.016..0.036 rows=20 loops=1)
+   Buffers: shared hit=20 read=4
+   ->  Index Scan using "IX_orders_user_id_status_created_at" on orders  (cost=0.42..28796.45 rows=10477 width=63) (actual time=0.016..0.035 rows=20 loops=1)
+         Index Cond: ((user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid) AND ((status)::text = 'Completed'::text))
+         Buffers: shared hit=20 read=4
+ Planning:
+   Buffers: shared hit=20 read=1
+ Planning Time: 0.128 ms
+ Execution Time: 0.045 ms
+(9 rows)
+
+Выигрыш не окупает 40+ MB и замедление записи — индекс удаляем,
+в миграцию он не попадает.
+DROP INDEX
+
+================================================================
+ ИТОГОВОЕ СОСТОЯНИЕ ИНДЕКСОВ ПОСЛЕ МИГРАЦИИ
+================================================================
+         indexrelname         |  size   | times_used 
+------------------------------+---------+------------
+ IX_orders_user_id_created_at | 39 MB   |          4
+ PK_orders                    | 38 MB   |    8000039
+ IX_orders_created_at         | 21 MB   |          3
+ IX_orders_user_id            | 9904 kB |        104
+(4 rows)
+
+ heap  | all_indexes 
+-------+-------------
+ 85 MB | 108 MB
+(1 row)
+
