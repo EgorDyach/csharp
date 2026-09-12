@@ -4,6 +4,8 @@ Streaming replication для сервиса ChakChakShop: запись на Prim
 чтения — с Replica. Все цифры получены на живом стенде с базой в 5 млн
 заказов, сырые логи прогонов лежат в [`raw/`](raw).
 
+**Отчёт для защиты:** https://claude.ai/code/artifact/97b2a6f3-318b-40b9-a63e-895a0c621762
+
 ---
 
 ## Стенд
