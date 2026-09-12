@@ -18,6 +18,9 @@ namespace ChakChakShop.API.Services.Partitioning;
 /// </summary>
 public class CreatePartitionsJob : BackgroundService
 {
+    /// <summary>Как часто job сверяется с часами. Минута точности здесь более чем достаточна.</summary>
+    private static readonly TimeSpan TickInterval = TimeSpan.FromMinutes(1);
+
     private readonly IPartitionManager _partitionManager;
     private readonly PartitionOptions _options;
     private readonly ILogger<CreatePartitionsJob> _logger;
@@ -44,21 +47,36 @@ public class CreatePartitionsJob : BackgroundService
         // горизонт должен восстановиться сразу, а не в час ночи.
         await RunOnceAsync(stoppingToken);
 
+        // Расписание держится на сравнении с часами, а не на одном длинном
+        // Task.Delay до часа ночи. Длинное ожидание переживает не всякую паузу:
+        // если хост уснул, монотонный таймер внутри контейнера встаёт вместе
+        // с ним, и запуск не происходит вовсе — проверено на живом стенде,
+        // где job молчала целые сутки, а о пропаже партиции сообщил
+        // PartitionHealthCheck. Короткий тик переживает засыпание и навёрстывает
+        // пропущенный запуск при первом же пробуждении.
+        var nextRun = NextRunAfter(DateTime.UtcNow);
+        _logger.LogInformation("Next partition job run at {NextRun:u}", nextRun);
+
         while (!stoppingToken.IsCancellationRequested)
         {
-            var delay = TimeUntilNextRun(DateTime.UtcNow);
-            _logger.LogInformation("Next partition job run in {Delay}", delay);
-
             try
             {
-                await Task.Delay(delay, stoppingToken);
+                await Task.Delay(TickInterval, stoppingToken);
             }
             catch (OperationCanceledException)
             {
                 return;
             }
 
+            if (DateTime.UtcNow < nextRun)
+            {
+                continue;
+            }
+
             await RunOnceAsync(stoppingToken);
+
+            nextRun = NextRunAfter(DateTime.UtcNow);
+            _logger.LogInformation("Next partition job run at {NextRun:u}", nextRun);
         }
     }
 
@@ -113,14 +131,10 @@ public class CreatePartitionsJob : BackgroundService
         }
     }
 
-    private TimeSpan TimeUntilNextRun(DateTime now)
+    /// <summary>Ближайший наступающий момент запуска строго после <paramref name="now"/>.</summary>
+    private DateTime NextRunAfter(DateTime now)
     {
         var next = now.Date + _options.CreateJobTimeOfDay;
-        if (next <= now)
-        {
-            next = next.AddDays(1);
-        }
-
-        return next - now;
+        return next <= now ? next.AddDays(1) : next;
     }
 }
