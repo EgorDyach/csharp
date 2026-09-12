@@ -1,0 +1,94 @@
+# =====================================================================
+# Часть 1: фрагмент docker-compose с двумя экземплярами PostgreSQL
+# =====================================================================
+# Primary  — сервис postgres из основного docker-compose.yml, порт 5455.
+# Replica  — postgres_replica, порт 5456, тот же образ, без своего конфига:
+#            PGDATA приходит целиком из pg_basebackup вместе со
+#            standby.signal и primary_conninfo, поэтому контейнер стартует
+#            сразу в режиме восстановления.
+#
+# Подключение:
+#   Primary: psql -h localhost -p 5455 -U postgres -d chakchakshop
+#   Replica: psql -h localhost -p 5456 -U postgres -d chakchakshop
+#   изнутри сети compose: host=postgres / host=postgres_replica, порт 5432
+# =====================================================================
+
+services:
+  # По умолчанию Docker даёт контейнеру 64 MB /dev/shm. PostgreSQL размещает там
+  # сегменты параллельных запросов, и на таблице в 10 млн строк параллельный
+  # Bitmap/Hash падает с "could not resize shared memory segment ... No space left
+  # on device". Лечится не настройками СУБД, а размером shm у контейнера.
+  postgres:
+    shm_size: '1gb'
+
+  api:
+    ports: !override
+      - '8090:8080'
+      - '8091:8081'
+    environment:
+      # Канал уведомлений PartitionHealthCheck. alert_sink — локальный
+      # приёмник webhook'ов (lab_new_3/tools/alert-sink.py), который печатает
+      # пришедшее сообщение в docker logs. В бою сюда ставится адрес VK / MAX.
+      - Partitioning__Alerts__WebhookUrl=http://alert_sink:8099/hook
+      # На защите проверка должна отрабатывать быстро, а не раз в пять минут.
+      - Partitioning__HealthCheckInterval=00:01:00
+      # Read Scaling: списочные чтения уходят на standby (лаб. работа №4).
+      # ApplicationName виден в pg_stat_activity на реплике — удобно
+      # доказывать, что запросы действительно пришли от сервиса.
+      - ConnectionStrings__ReplicaConnection=Host=postgres_replica;Port=5432;Database=chakchakshop;Username=postgres;Password=postgres;ApplicationName=chakchakshop-api-read
+    depends_on:
+      postgres_replica:
+        condition: service_healthy
+
+  # Replica: горячий standby для масштабирования чтения (лаб. работа №4).
+  # Собственного конфига у неё нет — PGDATA приходит из pg_basebackup вместе
+  # со standby.signal и primary_conninfo, поэтому контейнер стартует сразу
+  # в режиме восстановления и подключается к Primary потоком WAL.
+  postgres_replica:
+    image: postgres:16-alpine
+    container_name: chakchakshop_postgres_replica
+    shm_size: '1gb'
+    environment:
+      # Нужен только на случай повторной инициализации пустого тома;
+      # на восстановленном PGDATA entrypoint его не использует.
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5456:5432'
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - chakchakshop_network
+
+  # pgAdmin для наглядного показа планов выполнения (графический EXPLAIN).
+  # Поднимается только локально, в основной docker-compose.yml не входит.
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: chakchakshop_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@chakchakshop.ru
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+      - PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION=False
+    ports:
+      - '5050:80'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - chakchakshop_network
+
+volumes:
+  pgadmin_data:
+  postgres_replica_data:
