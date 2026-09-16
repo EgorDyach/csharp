@@ -1,0 +1,91 @@
+# =====================================================================
+# Часть 2: четыре независимых экземпляра PostgreSQL под шарды
+# =====================================================================
+# Это НЕ кластер. Между этими базами нет ни репликации, ни общего
+# каталога, ни распределённых транзакций — они не знают друг о друге
+# вообще ничего. Связывает их только код роутера в сервисе.
+#
+# Шарды 0-2 работают с самого начала. Шард 3 поднимается вместе с ними,
+# но до задания 5 остаётся пустым: он нужен, чтобы вживую показать
+# переезд данных при расширении кластера с трёх узлов до четырёх.
+#
+# Подключение снаружи:
+#   shard0: localhost:5501     shard2: localhost:5503
+#   shard1: localhost:5502     shard3: localhost:5504
+# Изнутри сети compose: shard0..shard3, порт 5432.
+# =====================================================================
+services:
+  shard0:
+    image: postgres:16-alpine
+    container_name: chakchakshop_shard0
+    environment:
+      POSTGRES_DB: shard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ['5501:5432']
+    volumes: ['shard0_data:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [chakchakshop_network]
+
+  shard1:
+    image: postgres:16-alpine
+    container_name: chakchakshop_shard1
+    environment:
+      POSTGRES_DB: shard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ['5502:5432']
+    volumes: ['shard1_data:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [chakchakshop_network]
+
+  shard2:
+    image: postgres:16-alpine
+    container_name: chakchakshop_shard2
+    environment:
+      POSTGRES_DB: shard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ['5503:5432']
+    volumes: ['shard2_data:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [chakchakshop_network]
+
+  shard3:
+    image: postgres:16-alpine
+    container_name: chakchakshop_shard3
+    environment:
+      POSTGRES_DB: shard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports: ['5504:5432']
+    volumes: ['shard3_data:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [chakchakshop_network]
+
+volumes:
+  shard0_data:
+  shard1_data:
+  shard2_data:
+  shard3_data:
+
+networks:
+  chakchakshop_network:
+    external: true
+    name: cproject_chakchakshop_network
