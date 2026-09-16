@@ -1,0 +1,85 @@
+
+================================================================
+ Добавляем активного пользователя (user_id = 1) с 200 000 событий
+================================================================
+INSERT 0 200000
+VACUUM
+ total_rows 
+------------
+   10200000
+(1 row)
+
+ active_user_rows 
+------------------
+           200112
+(1 row)
+
+
+--- 7.4 ДО составного индекса (он временно скрыт) -> ожидаем Sort ---
+BEGIN
+DROP INDEX
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..306.83 rows=100 width=36) (actual time=0.324..115.044 rows=100 loops=1)
+   Buffers: shared hit=180 read=4491 written=4066
+   ->  Index Scan Backward using idx_events_created_at on events  (cost=0.43..628173.87 rows=205020 width=36) (actual time=0.323..115.022 rows=100 loops=1)
+         Filter: (user_id = 1)
+         Rows Removed by Filter: 4543
+         Buffers: shared hit=180 read=4491 written=4066
+ Planning:
+   Buffers: shared hit=12
+ Planning Time: 0.125 ms
+ Execution Time: 115.076 ms
+(10 rows)
+
+ROLLBACK
+--- прогрев ---
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..169.17 rows=100 width=36) (actual time=0.013..0.116 rows=100 loops=1)
+   ->  Index Scan using idx_events_user_created on events  (cost=0.43..345946.94 rows=205020 width=36) (actual time=0.012..0.112 rows=100 loops=1)
+         Index Cond: (user_id = 1)
+ Planning Time: 0.124 ms
+ Execution Time: 0.124 ms
+(5 rows)
+
+--- 7.5 ПОСЛЕ: доступен idx_events_user_created (user_id, created_at DESC) ---
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..169.17 rows=100 width=36) (actual time=0.013..0.048 rows=100 loops=1)
+   Buffers: shared hit=103
+   ->  Index Scan using idx_events_user_created on events  (cost=0.43..345946.94 rows=205020 width=36) (actual time=0.013..0.044 rows=100 loops=1)
+         Index Cond: (user_id = 1)
+         Buffers: shared hit=103
+ Planning Time: 0.018 ms
+ Execution Time: 0.055 ms
+(7 rows)
+
+--- 7.6 тот же запрос без LIMIT: почему Sort возвращается ---
+                                                                     QUERY PLAN                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather Merge  (cost=130693.33..150627.22 rows=170850 width=36) (actual time=35.170..55.981 rows=200112 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=875 read=1077 written=1076, temp read=1227 written=1231
+   ->  Sort  (cost=129693.31..129906.87 rows=85425 width=36) (actual time=22.868..26.172 rows=66704 loops=3)
+         Sort Key: created_at DESC
+         Sort Method: external merge  Disk: 4728kB
+         Buffers: shared hit=875 read=1077 written=1076, temp read=1227 written=1231
+         Worker 0:  Sort Method: external merge  Disk: 2696kB
+         Worker 1:  Sort Method: external merge  Disk: 2392kB
+         ->  Parallel Bitmap Heap Scan on events  (cost=2301.34..120357.99 rows=85425 width=36) (actual time=0.666..9.858 rows=66704 loops=3)
+               Recheck Cond: (user_id = 1)
+               Heap Blocks: exact=915
+               Buffers: shared hit=861 read=1077 written=1076
+               ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..2250.09 rows=205020 width=0) (actual time=1.823..1.823 rows=200112 loops=1)
+                     Index Cond: (user_id = 1)
+                     Buffers: shared hit=159
+ Planning Time: 0.023 ms
+ JIT:
+   Functions: 6
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.484 ms, Inlining 0.000 ms, Optimization 0.000 ms, Emission 0.000 ms, Total 0.484 ms
+ Execution Time: 60.293 ms
+(23 rows)
+

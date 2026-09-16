@@ -1,0 +1,927 @@
+
+================================================================
+ ОКРУЖЕНИЕ
+================================================================
+ postgres_version 
+------------------
+ 16.14
+(1 row)
+
+              name               | setting | unit 
+---------------------------------+---------+------
+ effective_cache_size            | 524288  | 8kB
+ max_parallel_workers_per_gather | 2       | 
+ random_page_cost                | 4       | 
+ shared_buffers                  | 16384   | 8kB
+ work_mem                        | 4096    | kB
+(5 rows)
+
+
+================================================================
+ ЗАДАНИЕ 1. Создание таблицы events
+================================================================
+psql:<stdin>:30: NOTICE:  table "events" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+CREATE FUNCTION
+
+################################################################
+#  КОНТРОЛЬНАЯ ТОЧКА: 10 000 строк
+################################################################
+ gen_events 
+------------
+ 
+(1 row)
+
+ANALYZE
+--- ЗАДАНИЕ 3. Размер таблицы ---
+ rows  | table_size | total_size 
+-------+------------+------------
+ 10000 | 672 kB     | 944 kB
+(1 row)
+
+--- ЗАДАНИЕ 4. SELECT без дополнительного индекса ---
+                                            QUERY PLAN                                             
+---------------------------------------------------------------------------------------------------
+ Seq Scan on events  (cost=0.00..209.00 rows=1 width=36) (actual time=0.051..0.209 rows=1 loops=1)
+   Filter: (user_id = 123)
+   Rows Removed by Filter: 9999
+ Planning Time: 0.040 ms
+ Execution Time: 0.212 ms
+(5 rows)
+
+                                            QUERY PLAN                                             
+---------------------------------------------------------------------------------------------------
+ Seq Scan on events  (cost=0.00..209.00 rows=1 width=36) (actual time=0.053..0.193 rows=1 loops=1)
+   Filter: (user_id = 123)
+   Rows Removed by Filter: 9999
+   Buffers: shared hit=84
+ Planning Time: 0.013 ms
+ Execution Time: 0.195 ms
+(6 rows)
+
+--- ЗАДАНИЕ 5. Тот же запрос с индексом ---
+CREATE INDEX
+ANALYZE
+ index_size 
+------------
+ 240 kB
+(1 row)
+
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Index Scan using idx_events_user_id on events  (cost=0.29..8.30 rows=1 width=36) (actual time=0.019..0.020 rows=1 loops=1)
+   Index Cond: (user_id = 123)
+ Planning Time: 0.079 ms
+ Execution Time: 0.025 ms
+(4 rows)
+
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Index Scan using idx_events_user_id on events  (cost=0.29..8.30 rows=1 width=36) (actual time=0.005..0.005 rows=1 loops=1)
+   Index Cond: (user_id = 123)
+   Buffers: shared hit=3
+ Planning Time: 0.013 ms
+ Execution Time: 0.010 ms
+(5 rows)
+
+DROP INDEX
+
+################################################################
+#  КОНТРОЛЬНАЯ ТОЧКА: 100 000 строк
+################################################################
+ gen_events 
+------------
+ 
+(1 row)
+
+ANALYZE
+--- ЗАДАНИЕ 3. Размер таблицы ---
+  rows  | table_size | total_size 
+--------+------------+------------
+ 100000 | 6672 kB    | 8912 kB
+(1 row)
+
+--- ЗАДАНИЕ 4. SELECT без дополнительного индекса ---
+                                             QUERY PLAN                                             
+----------------------------------------------------------------------------------------------------
+ Seq Scan on events  (cost=0.00..2084.00 rows=2 width=36) (actual time=0.056..2.144 rows=1 loops=1)
+   Filter: (user_id = 123)
+   Rows Removed by Filter: 99999
+ Planning Time: 0.080 ms
+ Execution Time: 2.165 ms
+(5 rows)
+
+                                             QUERY PLAN                                             
+----------------------------------------------------------------------------------------------------
+ Seq Scan on events  (cost=0.00..2084.00 rows=2 width=36) (actual time=0.067..2.141 rows=1 loops=1)
+   Filter: (user_id = 123)
+   Rows Removed by Filter: 99999
+   Buffers: shared hit=834
+ Planning Time: 0.024 ms
+ Execution Time: 2.146 ms
+(6 rows)
+
+--- ЗАДАНИЕ 5. Тот же запрос с индексом ---
+CREATE INDEX
+ANALYZE
+ index_size 
+------------
+ 1936 kB
+(1 row)
+
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=4.31..12.04 rows=2 width=36) (actual time=0.015..0.015 rows=1 loops=1)
+   Recheck Cond: (user_id = 123)
+   Heap Blocks: exact=1
+   ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..4.31 rows=2 width=0) (actual time=0.012..0.012 rows=1 loops=1)
+         Index Cond: (user_id = 123)
+ Planning Time: 0.146 ms
+ Execution Time: 0.025 ms
+(7 rows)
+
+                                                        QUERY PLAN                                                         
+---------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=4.31..12.04 rows=2 width=36) (actual time=0.003..0.003 rows=1 loops=1)
+   Recheck Cond: (user_id = 123)
+   Heap Blocks: exact=1
+   Buffers: shared hit=3
+   ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..4.31 rows=2 width=0) (actual time=0.002..0.002 rows=1 loops=1)
+         Index Cond: (user_id = 123)
+         Buffers: shared hit=2
+ Planning Time: 0.015 ms
+ Execution Time: 0.012 ms
+(9 rows)
+
+DROP INDEX
+
+################################################################
+#  КОНТРОЛЬНАЯ ТОЧКА: 1 000 000 строк
+################################################################
+ gen_events 
+------------
+ 
+(1 row)
+
+ANALYZE
+--- ЗАДАНИЕ 3. Размер таблицы ---
+  rows   | table_size | total_size 
+---------+------------+------------
+ 1000000 | 65 MB      | 87 MB
+(1 row)
+
+--- ЗАДАНИЕ 4. SELECT без дополнительного индекса ---
+                                                     QUERY PLAN                                                     
+--------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..14543.43 rows=11 width=36) (actual time=0.141..11.767 rows=7 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on events  (cost=0.00..13542.33 rows=5 width=36) (actual time=1.230..8.475 rows=2 loops=3)
+         Filter: (user_id = 123)
+         Rows Removed by Filter: 333331
+ Planning Time: 0.066 ms
+ Execution Time: 11.779 ms
+(8 rows)
+
+                                                     QUERY PLAN                                                     
+--------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..14543.43 rows=11 width=36) (actual time=0.136..11.794 rows=7 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=8334
+   ->  Parallel Seq Scan on events  (cost=0.00..13542.33 rows=5 width=36) (actual time=2.354..8.683 rows=2 loops=3)
+         Filter: (user_id = 123)
+         Rows Removed by Filter: 333331
+         Buffers: shared hit=8334
+ Planning Time: 0.032 ms
+ Execution Time: 11.806 ms
+(10 rows)
+
+--- ЗАДАНИЕ 5. Тот же запрос с индексом ---
+CREATE INDEX
+ANALYZE
+ index_size 
+------------
+ 9088 kB
+(1 row)
+
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=4.51..47.45 rows=11 width=36) (actual time=0.070..0.080 rows=7 loops=1)
+   Recheck Cond: (user_id = 123)
+   Heap Blocks: exact=7
+   ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..4.51 rows=11 width=0) (actual time=0.067..0.067 rows=7 loops=1)
+         Index Cond: (user_id = 123)
+ Planning Time: 0.090 ms
+ Execution Time: 0.093 ms
+(7 rows)
+
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=4.51..47.45 rows=11 width=36) (actual time=0.005..0.007 rows=7 loops=1)
+   Recheck Cond: (user_id = 123)
+   Heap Blocks: exact=7
+   Buffers: shared hit=10
+   ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..4.51 rows=11 width=0) (actual time=0.004..0.004 rows=7 loops=1)
+         Index Cond: (user_id = 123)
+         Buffers: shared hit=3
+ Planning Time: 0.014 ms
+ Execution Time: 0.018 ms
+(9 rows)
+
+DROP INDEX
+
+################################################################
+#  КОНТРОЛЬНАЯ ТОЧКА: 5 000 000 строк
+################################################################
+ gen_events 
+------------
+ 
+(1 row)
+
+ANALYZE
+--- ЗАДАНИЕ 3. Размер таблицы ---
+  rows   | table_size | total_size 
+---------+------------+------------
+ 5000000 | 326 MB     | 433 MB
+(1 row)
+
+--- ЗАДАНИЕ 4. SELECT без дополнительного индекса ---
+                                                      QUERY PLAN                                                       
+-----------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..68713.58 rows=50 width=36) (actual time=0.200..62.112 rows=61 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on events  (cost=0.00..67708.58 rows=21 width=36) (actual time=1.359..52.757 rows=20 loops=3)
+         Filter: (user_id = 123)
+         Rows Removed by Filter: 1666646
+ Planning Time: 0.088 ms
+ Execution Time: 62.134 ms
+(8 rows)
+
+                                                      QUERY PLAN                                                       
+-----------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..68713.58 rows=50 width=36) (actual time=0.201..64.082 rows=61 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=12434 read=29233
+   ->  Parallel Seq Scan on events  (cost=0.00..67708.58 rows=21 width=36) (actual time=2.839..54.969 rows=20 loops=3)
+         Filter: (user_id = 123)
+         Rows Removed by Filter: 1666646
+         Buffers: shared hit=12434 read=29233
+ Planning Time: 0.033 ms
+ Execution Time: 64.107 ms
+(10 rows)
+
+--- ЗАДАНИЕ 5. Тот же запрос с индексом ---
+CREATE INDEX
+ANALYZE
+ index_size 
+------------
+ 34 MB
+(1 row)
+
+                                                         QUERY PLAN                                                          
+-----------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=4.83..204.11 rows=51 width=36) (actual time=0.022..0.178 rows=61 loops=1)
+   Recheck Cond: (user_id = 123)
+   Heap Blocks: exact=61
+   ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..4.82 rows=51 width=0) (actual time=0.014..0.014 rows=61 loops=1)
+         Index Cond: (user_id = 123)
+ Planning Time: 0.102 ms
+ Execution Time: 0.194 ms
+(7 rows)
+
+                                                         QUERY PLAN                                                          
+-----------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=4.83..204.11 rows=51 width=36) (actual time=0.011..0.027 rows=61 loops=1)
+   Recheck Cond: (user_id = 123)
+   Heap Blocks: exact=61
+   Buffers: shared hit=64
+   ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..4.82 rows=51 width=0) (actual time=0.007..0.007 rows=61 loops=1)
+         Index Cond: (user_id = 123)
+         Buffers: shared hit=3
+ Planning Time: 0.018 ms
+ Execution Time: 0.040 ms
+(9 rows)
+
+DROP INDEX
+
+################################################################
+#  КОНТРОЛЬНАЯ ТОЧКА: 10 000 000 строк
+################################################################
+ gen_events 
+------------
+ 
+(1 row)
+
+ANALYZE
+--- ЗАДАНИЕ 3. Размер таблицы ---
+   rows   | table_size | total_size 
+----------+------------+------------
+ 10000000 | 651 MB     | 865 MB
+(1 row)
+
+--- ЗАДАНИЕ 4. SELECT без дополнительного индекса ---
+                                                       QUERY PLAN                                                        
+-------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..136427.85 rows=101 width=36) (actual time=2.283..186.237 rows=113 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Seq Scan on events  (cost=0.00..135417.75 rows=42 width=36) (actual time=9.143..173.753 rows=38 loops=3)
+         Filter: (user_id = 123)
+         Rows Removed by Filter: 3333296
+ Planning Time: 0.122 ms
+ JIT:
+   Functions: 6
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 1.479 ms, Inlining 0.000 ms, Optimization 0.758 ms, Emission 5.149 ms, Total 7.386 ms
+ Execution Time: 186.454 ms
+(12 rows)
+
+                                                       QUERY PLAN                                                        
+-------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..136427.85 rows=101 width=36) (actual time=1.339..210.804 rows=113 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=12354 read=70980
+   ->  Parallel Seq Scan on events  (cost=0.00..135417.75 rows=42 width=36) (actual time=4.097..199.752 rows=38 loops=3)
+         Filter: (user_id = 123)
+         Rows Removed by Filter: 3333296
+         Buffers: shared hit=12354 read=70980
+ Planning Time: 0.041 ms
+ JIT:
+   Functions: 6
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.331 ms, Inlining 0.000 ms, Optimization 0.306 ms, Emission 4.123 ms, Total 4.759 ms
+ Execution Time: 210.969 ms
+(14 rows)
+
+--- ЗАДАНИЕ 5. Тот же запрос с индексом ---
+CREATE INDEX
+ANALYZE
+ index_size 
+------------
+ 68 MB
+(1 row)
+
+                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=5.24..411.52 rows=104 width=36) (actual time=0.029..1.567 rows=113 loops=1)
+   Recheck Cond: (user_id = 123)
+   Heap Blocks: exact=113
+   ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..5.21 rows=104 width=0) (actual time=0.013..0.013 rows=113 loops=1)
+         Index Cond: (user_id = 123)
+ Planning Time: 0.117 ms
+ Execution Time: 1.596 ms
+(7 rows)
+
+                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=5.24..411.52 rows=104 width=36) (actual time=0.011..0.049 rows=113 loops=1)
+   Recheck Cond: (user_id = 123)
+   Heap Blocks: exact=113
+   Buffers: shared hit=116
+   ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..5.21 rows=104 width=0) (actual time=0.007..0.007 rows=113 loops=1)
+         Index Cond: (user_id = 123)
+         Buffers: shared hit=3
+ Planning Time: 0.021 ms
+ Execution Time: 0.063 ms
+(9 rows)
+
+
+================================================================
+ ЗАДАНИЕ 6. Поиск по диапазону дат (на 10 000 000 строк)
+================================================================
+--- 6.1 ДО индекса по created_at: последние сутки ---
+                                                          QUERY PLAN                                                          
+------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..159845.15 rows=25939 width=36) (actual time=7.466..473.912 rows=27157 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=12643 read=70691
+   ->  Parallel Seq Scan on events  (cost=0.00..156251.25 rows=10808 width=36) (actual time=4.507..456.462 rows=9052 loops=3)
+         Filter: (created_at >= (now() - '1 day'::interval))
+         Rows Removed by Filter: 3324281
+         Buffers: shared hit=12643 read=70691
+ Planning:
+   Buffers: shared read=3
+ Planning Time: 1.024 ms
+ JIT:
+   Functions: 6
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 1.134 ms, Inlining 0.000 ms, Optimization 2.503 ms, Emission 9.882 ms, Total 13.520 ms
+ Execution Time: 475.157 ms
+(16 rows)
+
+CREATE INDEX
+ANALYZE
+ index_size 
+------------
+ 214 MB
+(1 row)
+
+--- 6.2 ПОСЛЕ индекса: последние сутки ---
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=482.58..55298.17 rows=25566 width=36) (actual time=4.266..448.360 rows=27156 loops=1)
+   Recheck Cond: (created_at >= (now() - '1 day'::interval))
+   Heap Blocks: exact=23259
+   ->  Bitmap Index Scan on idx_events_created_at  (cost=0.00..476.19 rows=25566 width=0) (actual time=2.412..2.412 rows=27156 loops=1)
+         Index Cond: (created_at >= (now() - '1 day'::interval))
+ Planning Time: 0.207 ms
+ Execution Time: 449.401 ms
+(7 rows)
+
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=482.58..55298.17 rows=25566 width=36) (actual time=4.087..57.961 rows=27155 loops=1)
+   Recheck Cond: (created_at >= (now() - '1 day'::interval))
+   Heap Blocks: exact=23258
+   Buffers: shared hit=3 read=23332
+   ->  Bitmap Index Scan on idx_events_created_at  (cost=0.00..476.19 rows=25566 width=0) (actual time=2.338..2.338 rows=27155 loops=1)
+         Index Cond: (created_at >= (now() - '1 day'::interval))
+         Buffers: shared hit=2 read=75
+ Planning:
+   Buffers: shared hit=1 read=3
+ Planning Time: 0.141 ms
+ Execution Time: 58.687 ms
+(11 rows)
+
+--- 6.3 сколько строк попадает в разные диапазоны ---
+  range   |  count  |  pct   
+----------+---------+--------
+ 1 day    |   27155 |  0.272
+ 7 days   |  190714 |  1.907
+ 30 days  |  821542 |  8.215
+ 180 days | 4932298 | 49.323
+(4 rows)
+
+--- 6.4 диапазон 7 дней ---
+                                                                    QUERY PLAN                                                                     
+---------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=4365.39..150432.48 rows=179735 width=36) (actual time=19.552..285.542 rows=190713 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   ->  Parallel Bitmap Heap Scan on events  (cost=3365.39..131458.98 rows=74890 width=36) (actual time=13.027..270.548 rows=63571 loops=3)
+         Recheck Cond: (created_at >= (now() - '7 days'::interval))
+         Rows Removed by Index Recheck: 1295675
+         Heap Blocks: exact=14572 lossy=11537
+         ->  Bitmap Index Scan on idx_events_created_at  (cost=0.00..3320.45 rows=179735 width=0) (actual time=15.835..15.835 rows=190713 loops=1)
+               Index Cond: (created_at >= (now() - '7 days'::interval))
+ Planning Time: 0.255 ms
+ JIT:
+   Functions: 9
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.549 ms, Inlining 0.000 ms, Optimization 0.527 ms, Emission 6.627 ms, Total 7.703 ms
+ Execution Time: 289.821 ms
+(15 rows)
+
+--- 6.5 диапазон 30 дней ---
+                                                                  QUERY PLAN                                                                  
+----------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on events  (cost=14887.32..209879.58 rows=795210 width=36) (actual time=58.151..625.037 rows=821542 loops=1)
+   Recheck Cond: (created_at >= (now() - '30 days'::interval))
+   Rows Removed by Index Recheck: 3639970
+   Heap Blocks: exact=50168 lossy=33164
+   ->  Bitmap Index Scan on idx_events_created_at  (cost=0.00..14688.51 rows=795210 width=0) (actual time=51.189..51.189 rows=821542 loops=1)
+         Index Cond: (created_at >= (now() - '30 days'::interval))
+ Planning Time: 0.066 ms
+ JIT:
+   Functions: 3
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.230 ms, Inlining 0.000 ms, Optimization 0.143 ms, Emission 1.425 ms, Total 1.798 ms
+ Execution Time: 641.230 ms
+(12 rows)
+
+--- 6.6 диапазон 180 дней (половина таблицы) ---
+                                                     QUERY PLAN                                                     
+--------------------------------------------------------------------------------------------------------------------
+ Seq Scan on events  (cost=0.00..258331.52 rows=4928515 width=36) (actual time=2.032..956.658 rows=4932297 loops=1)
+   Filter: (created_at >= (now() - '180 days'::interval))
+   Rows Removed by Filter: 5067703
+ Planning Time: 0.074 ms
+ JIT:
+   Functions: 2
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.206 ms, Inlining 0.000 ms, Optimization 0.094 ms, Emission 1.922 ms, Total 2.223 ms
+ Execution Time: 1044.783 ms
+(9 rows)
+
+
+================================================================
+ ЗАДАНИЕ 7. Фильтрация и сортировка
+================================================================
+--- 7.1 ДО составного индекса ---
+                                                                QUERY PLAN                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=403.29..403.54 rows=100 width=36) (actual time=3.255..3.261 rows=100 loops=1)
+   ->  Sort  (cost=403.29..403.55 rows=101 width=36) (actual time=3.254..3.256 rows=100 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: quicksort  Memory: 32kB
+         ->  Bitmap Heap Scan on events  (cost=5.22..399.93 rows=101 width=36) (actual time=2.897..3.236 rows=113 loops=1)
+               Recheck Cond: (user_id = 123)
+               Heap Blocks: exact=113
+               ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..5.19 rows=101 width=0) (actual time=2.877..2.877 rows=113 loops=1)
+                     Index Cond: (user_id = 123)
+ Planning Time: 2.526 ms
+ Execution Time: 3.285 ms
+(11 rows)
+
+                                                                QUERY PLAN                                                                 
+-------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=403.29..403.54 rows=100 width=36) (actual time=0.062..0.068 rows=100 loops=1)
+   Buffers: shared hit=116
+   ->  Sort  (cost=403.29..403.55 rows=101 width=36) (actual time=0.062..0.064 rows=100 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: quicksort  Memory: 32kB
+         Buffers: shared hit=116
+         ->  Bitmap Heap Scan on events  (cost=5.22..399.93 rows=101 width=36) (actual time=0.014..0.050 rows=113 loops=1)
+               Recheck Cond: (user_id = 123)
+               Heap Blocks: exact=113
+               Buffers: shared hit=116
+               ->  Bitmap Index Scan on idx_events_user_id  (cost=0.00..5.19 rows=101 width=0) (actual time=0.007..0.007 rows=113 loops=1)
+                     Index Cond: (user_id = 123)
+                     Buffers: shared hit=3
+ Planning Time: 0.051 ms
+ Execution Time: 0.087 ms
+(15 rows)
+
+CREATE INDEX
+ANALYZE
+ index_size 
+------------
+ 301 MB
+(1 row)
+
+--- 7.2 ПОСЛЕ составного индекса ---
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=395.48..395.73 rows=99 width=36) (actual time=0.123..0.139 rows=100 loops=1)
+   ->  Sort  (cost=395.48..395.73 rows=99 width=36) (actual time=0.123..0.125 rows=100 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: quicksort  Memory: 32kB
+         ->  Bitmap Heap Scan on events  (cost=5.20..392.20 rows=99 width=36) (actual time=0.022..0.107 rows=113 loops=1)
+               Recheck Cond: (user_id = 123)
+               Heap Blocks: exact=113
+               ->  Bitmap Index Scan on idx_events_user_created  (cost=0.00..5.18 rows=99 width=0) (actual time=0.013..0.013 rows=113 loops=1)
+                     Index Cond: (user_id = 123)
+ Planning Time: 1.109 ms
+ Execution Time: 0.156 ms
+(11 rows)
+
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=395.48..395.73 rows=99 width=36) (actual time=0.051..0.057 rows=100 loops=1)
+   Buffers: shared hit=116
+   ->  Sort  (cost=395.48..395.73 rows=99 width=36) (actual time=0.051..0.053 rows=100 loops=1)
+         Sort Key: created_at DESC
+         Sort Method: quicksort  Memory: 32kB
+         Buffers: shared hit=116
+         ->  Bitmap Heap Scan on events  (cost=5.20..392.20 rows=99 width=36) (actual time=0.012..0.040 rows=113 loops=1)
+               Recheck Cond: (user_id = 123)
+               Heap Blocks: exact=113
+               Buffers: shared hit=116
+               ->  Bitmap Index Scan on idx_events_user_created  (cost=0.00..5.18 rows=99 width=0) (actual time=0.005..0.005 rows=113 loops=1)
+                     Index Cond: (user_id = 123)
+                     Buffers: shared hit=3
+ Planning Time: 0.022 ms
+ Execution Time: 0.070 ms
+(15 rows)
+
+--- 7.3 обратный порядок колонок: (created_at, user_id) для сравнения ---
+CREATE INDEX
+ANALYZE
+BEGIN
+DROP INDEX
+                                                              QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=136418.91..136428.71 rows=84 width=36) (actual time=619.205..622.913 rows=100 loops=1)
+   Buffers: shared hit=16144 read=67262
+   ->  Gather Merge  (cost=136418.91..136428.71 rows=84 width=36) (actual time=617.553..621.257 rows=100 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=16144 read=67262
+         ->  Sort  (cost=135418.88..135418.99 rows=42 width=36) (actual time=608.469..608.471 rows=36 loops=3)
+               Sort Key: created_at DESC
+               Sort Method: quicksort  Memory: 28kB
+               Buffers: shared hit=16144 read=67262
+               Worker 0:  Sort Method: quicksort  Memory: 27kB
+               Worker 1:  Sort Method: quicksort  Memory: 27kB
+               ->  Parallel Seq Scan on events  (cost=0.00..135417.75 rows=42 width=36) (actual time=20.346..608.232 rows=38 loops=3)
+                     Filter: (user_id = 123)
+                     Rows Removed by Filter: 3333296
+                     Buffers: shared hit=16073 read=67261
+ Planning:
+   Buffers: shared hit=29 read=1
+ Planning Time: 0.282 ms
+ JIT:
+   Functions: 7
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 1.862 ms, Inlining 0.000 ms, Optimization 0.416 ms, Emission 4.895 ms, Total 7.173 ms
+ Execution Time: 623.181 ms
+(24 rows)
+
+ROLLBACK
+DROP INDEX
+
+================================================================
+ ЗАДАНИЕ 8. Агрегация
+================================================================
+--- 8.1 GROUP BY event_type за 30 дней (индекс по created_at есть) ---
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=147982.14..147983.15 rows=4 width=15) (actual time=720.787..725.272 rows=4 loops=1)
+   Group Key: event_type
+   ->  Gather Merge  (cost=147982.14..147983.07 rows=8 width=15) (actual time=720.773..725.257 rows=12 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Sort  (cost=146982.12..146982.13 rows=4 width=15) (actual time=711.661..711.662 rows=4 loops=3)
+               Sort Key: event_type
+               Sort Method: quicksort  Memory: 25kB
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=146982.04..146982.08 rows=4 width=15) (actual time=711.642..711.643 rows=4 loops=3)
+                     Group Key: event_type
+                     Batches: 1  Memory Usage: 24kB
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Bitmap Heap Scan on events  (cost=15344.95..145274.37 rows=341533 width=7) (actual time=45.195..683.739 rows=273846 loops=3)
+                           Recheck Cond: (created_at >= (now() - '30 days'::interval))
+                           Rows Removed by Index Recheck: 1213326
+                           Heap Blocks: exact=17457 lossy=11579
+                           ->  Bitmap Index Scan on idx_events_created_at  (cost=0.00..15140.03 rows=819679 width=0) (actual time=49.516..49.516 rows=821539 loops=1)
+                                 Index Cond: (created_at >= (now() - '30 days'::interval))
+ Planning Time: 0.202 ms
+ JIT:
+   Functions: 27
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 2.507 ms, Inlining 0.000 ms, Optimization 0.518 ms, Emission 10.941 ms, Total 13.966 ms
+ Execution Time: 725.692 ms
+(27 rows)
+
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=147982.13..147983.15 rows=4 width=15) (actual time=388.109..392.887 rows=4 loops=1)
+   Group Key: event_type
+   Buffers: shared hit=15 read=85581
+   ->  Gather Merge  (cost=147982.13..147983.07 rows=8 width=15) (actual time=388.096..392.874 rows=12 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=15 read=85581
+         ->  Sort  (cost=146982.11..146982.12 rows=4 width=15) (actual time=376.471..376.472 rows=4 loops=3)
+               Sort Key: event_type
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=15 read=85581
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=146982.03..146982.07 rows=4 width=15) (actual time=376.442..376.443 rows=4 loops=3)
+                     Group Key: event_type
+                     Batches: 1  Memory Usage: 24kB
+                     Buffers: shared read=85580
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Bitmap Heap Scan on events  (cost=15344.95..145274.36 rows=341533 width=7) (actual time=38.065..353.526 rows=273846 loops=3)
+                           Recheck Cond: (created_at >= (now() - '30 days'::interval))
+                           Rows Removed by Index Recheck: 1213326
+                           Heap Blocks: exact=17791 lossy=11762
+                           Buffers: shared read=85580
+                           ->  Bitmap Index Scan on idx_events_created_at  (cost=0.00..15140.03 rows=819679 width=0) (actual time=44.226..44.226 rows=821538 loops=1)
+                                 Index Cond: (created_at >= (now() - '30 days'::interval))
+                                 Buffers: shared read=2248
+ Planning Time: 0.073 ms
+ JIT:
+   Functions: 27
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.963 ms, Inlining 0.000 ms, Optimization 0.631 ms, Emission 8.948 ms, Total 10.542 ms
+ Execution Time: 393.236 ms
+(33 rows)
+
+--- 8.2 та же агрегация с принудительно отключённым индексом ---
+SET
+SET
+                                                                    QUERY PLAN                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=158959.02..158960.03 rows=4 width=15) (actual time=447.723..453.760 rows=4 loops=1)
+   Group Key: event_type
+   ->  Gather Merge  (cost=158959.02..158959.95 rows=8 width=15) (actual time=447.704..453.739 rows=12 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Sort  (cost=157958.99..157959.01 rows=4 width=15) (actual time=439.497..439.498 rows=4 loops=3)
+               Sort Key: event_type
+               Sort Method: quicksort  Memory: 25kB
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=157958.91..157958.95 rows=4 width=15) (actual time=439.476..439.476 rows=4 loops=3)
+                     Group Key: event_type
+                     Batches: 1  Memory Usage: 24kB
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Seq Scan on events  (cost=0.00..156251.25 rows=341533 width=7) (actual time=3.284..412.238 rows=273846 loops=3)
+                           Filter: (created_at >= (now() - '30 days'::interval))
+                           Rows Removed by Filter: 3059487
+ Planning Time: 0.091 ms
+ JIT:
+   Functions: 24
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.903 ms, Inlining 0.000 ms, Optimization 0.450 ms, Emission 9.606 ms, Total 10.959 ms
+ Execution Time: 454.118 ms
+(24 rows)
+
+RESET
+--- 8.3 агрегация без ограничения по дате (вся таблица) ---
+                                                                     QUERY PLAN                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=146834.60..146835.62 rows=4 width=15) (actual time=435.414..439.428 rows=4 loops=1)
+   Group Key: event_type
+   ->  Gather Merge  (cost=146834.60..146835.54 rows=8 width=15) (actual time=435.395..439.409 rows=12 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Sort  (cost=145834.58..145834.59 rows=4 width=15) (actual time=424.952..424.953 rows=4 loops=3)
+               Sort Key: event_type
+               Sort Method: quicksort  Memory: 25kB
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=145834.50..145834.54 rows=4 width=15) (actual time=424.929..424.930 rows=4 loops=3)
+                     Group Key: event_type
+                     Batches: 1  Memory Usage: 24kB
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Seq Scan on events  (cost=0.00..125001.00 rows=4166700 width=7) (actual time=0.070..178.260 rows=3333333 loops=3)
+ Planning Time: 0.105 ms
+ JIT:
+   Functions: 18
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+   Timing: Generation 0.990 ms, Inlining 0.000 ms, Optimization 0.754 ms, Emission 9.952 ms, Total 11.697 ms
+ Execution Time: 440.062 ms
+(22 rows)
+
+--- 8.4 поможет ли покрывающий индекс (created_at, event_type)? ---
+CREATE INDEX
+VACUUM
+ covering_index_size 
+---------------------
+ 314 MB
+(1 row)
+
+                                                                                     QUERY PLAN                                                                                      
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=25224.22..25225.24 rows=4 width=15) (actual time=78.329..81.477 rows=4 loops=1)
+   Group Key: event_type
+   Buffers: shared hit=530484 read=3295 written=3234
+   ->  Gather Merge  (cost=25224.22..25225.16 rows=8 width=15) (actual time=78.326..81.472 rows=12 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=530484 read=3295 written=3234
+         ->  Sort  (cost=24224.20..24224.21 rows=4 width=15) (actual time=71.572..71.573 rows=4 loops=3)
+               Sort Key: event_type
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=530484 read=3295 written=3234
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=24224.12..24224.16 rows=4 width=15) (actual time=71.554..71.555 rows=4 loops=3)
+                     Group Key: event_type
+                     Batches: 1  Memory Usage: 24kB
+                     Buffers: shared hit=530468 read=3295 written=3234
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Index Only Scan using idx_events_created_type on events  (cost=0.44..22532.65 rows=338293 width=7) (actual time=0.034..52.758 rows=273845 loops=3)
+                           Index Cond: (created_at >= (now() - '30 days'::interval))
+                           Heap Fetches: 0
+                           Buffers: shared hit=530468 read=3295 written=3234
+ Planning:
+   Buffers: shared hit=14 read=2
+ Planning Time: 0.554 ms
+ Execution Time: 81.532 ms
+(27 rows)
+
+DROP INDEX
+
+================================================================
+ ЗАДАНИЕ 9. Стоимость индексов при записи
+================================================================
+Замер на отдельной таблице той же структуры, чтобы не искажать events.
+psql:<stdin>:298: NOTICE:  table "events_bench_plain" does not exist, skipping
+DROP TABLE
+DROP TABLE
+psql:<stdin>:299: NOTICE:  table "events_bench_indexed" does not exist, skipping
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+--- 9.1 INSERT 500 000 строк БЕЗ индексов ---
+                                QUERY PLAN                                 
+---------------------------------------------------------------------------
+ Insert on events_bench_plain (actual rows=0 loops=1)
+   ->  Subquery Scan on "*SELECT*" (actual rows=500000 loops=1)
+         ->  Function Scan on generate_series (actual rows=500000 loops=1)
+ Planning Time: 0.178 ms
+ Execution Time: 320.429 ms
+(5 rows)
+
+--- 9.2 INSERT 500 000 строк С ТРЕМЯ индексами ---
+                                QUERY PLAN                                 
+---------------------------------------------------------------------------
+ Insert on events_bench_indexed (actual rows=0 loops=1)
+   ->  Subquery Scan on "*SELECT*" (actual rows=500000 loops=1)
+         ->  Function Scan on generate_series (actual rows=500000 loops=1)
+ Planning Time: 0.045 ms
+ Execution Time: 2237.449 ms
+(5 rows)
+
+--- 9.3 сколько занимают данные и сколько индексы ---
+       relname        |  heap  | indexes |  total  
+----------------------+--------+---------+---------
+ events               | 651 MB | 797 MB  | 1448 MB
+ events_bench_indexed | 33 MB  | 42 MB   | 74 MB
+ events_bench_plain   | 33 MB  | 0 bytes | 33 MB
+(3 rows)
+
+
+================================================================
+ ЗАДАНИЕ 10. Размер индексов на 10 000 000 строк
+================================================================
+      indexrelname       | index_size | times_used 
+-------------------------+------------+------------
+ idx_events_user_created | 301 MB     |          2
+ idx_events_created_at   | 214 MB     |         14
+ events_pkey             | 214 MB     |          0
+ idx_events_user_id      | 68 MB      |          4
+(4 rows)
+
+  heap  | all_indexes |  total  
+--------+-------------+---------
+ 651 MB | 797 MB      | 1448 MB
+(1 row)
+
+
+================================================================
+ ЗАДАНИЕ 11. Когда индекс уже не спасает
+================================================================
+--- 11.1 GROUP BY DATE(created_at) за 365 дней — вся таблица ---
+                                                         QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=845839.45..1048965.86 rows=10000069 width=12) (actual time=2178.969..2179.503 rows=366 loops=1)
+   Group Key: date(created_at)
+   Planned Partitions: 128  Batches: 1  Memory Usage: 3121kB
+   Buffers: shared hit=2393 read=80941 written=32
+   ->  Seq Scan on events  (cost=0.00..283335.57 rows=10000069 width=4) (actual time=45.863..1553.147 rows=9999989 loops=1)
+         Filter: (created_at >= (now() - '365 days'::interval))
+         Rows Removed by Filter: 11
+         Buffers: shared hit=2393 read=80941 written=32
+ Planning:
+   Buffers: shared hit=12 read=5 written=5
+ Planning Time: 0.486 ms
+ JIT:
+   Functions: 8
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 0.897 ms, Inlining 5.559 ms, Optimization 15.540 ms, Emission 24.809 ms, Total 46.804 ms
+ Execution Time: 2181.219 ms
+(16 rows)
+
+--- 11.2 то же самое, но за 7 дней: селективное условие ---
+                                                                      QUERY PLAN                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=16392.42..20209.31 rows=187908 width=12) (actual time=31.264..31.392 rows=8 loops=1)
+   Group Key: date(created_at)
+   Planned Partitions: 4  Batches: 1  Memory Usage: 3097kB
+   Buffers: shared hit=123254 read=522 written=3
+   ->  Index Only Scan using idx_events_created_at on events  (cost=0.44..5822.60 rows=187908 width=4) (actual time=0.415..20.577 rows=190703 loops=1)
+         Index Cond: (created_at >= (now() - '7 days'::interval))
+         Heap Fetches: 0
+         Buffers: shared hit=123254 read=522 written=3
+ Planning:
+   Buffers: shared hit=2 read=2 written=2
+ Planning Time: 0.689 ms
+ Execution Time: 31.902 ms
+(12 rows)
+
+--- 11.3 решение из мира больших данных: предагрегированная витрина ---
+psql:<stdin>:370: NOTICE:  table "events_daily" does not exist, skipping
+DROP TABLE
+SELECT 1464
+CREATE INDEX
+ANALYZE
+ rows_in_rollup | rollup_size | source_size 
+----------------+-------------+-------------
+           1464 | 192 kB      | 1448 MB
+(1 row)
+
+--- 11.4 тот же отчёт по витрине вместо сырой таблицы ---
+                                                     QUERY PLAN                                                     
+--------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=52.60..57.17 rows=366 width=36) (actual time=0.302..0.325 rows=366 loops=1)
+   Group Key: day
+   Batches: 1  Memory Usage: 93kB
+   Buffers: shared hit=16
+   ->  Seq Scan on events_daily  (cost=0.00..45.28 rows=1464 width=12) (actual time=0.006..0.173 rows=1464 loops=1)
+         Filter: (day >= ((now() - '365 days'::interval))::date)
+         Buffers: shared hit=16
+ Planning:
+   Buffers: shared hit=13 read=5
+ Planning Time: 0.598 ms
+ Execution Time: 0.498 ms
+(11 rows)
+

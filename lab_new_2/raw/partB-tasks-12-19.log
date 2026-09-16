@@ -1,0 +1,566 @@
+
+================================================================
+ ЗАДАНИЕ 12. Выбор сущности
+================================================================
+ table_name  | approx_rows |    heap    | indexes | total  
+-------------+-------------+------------+---------+--------
+ order_items |     2000005 | 178 MB     | 151 MB  | 329 MB
+ orders      |     1000003 | 85 MB      | 108 MB  | 193 MB
+ users       |       50003 | 8168 kB    | 6392 kB | 14 MB
+ products    |           7 | 8192 bytes | 32 kB   | 48 kB
+(4 rows)
+
+--- индексы, доступные запросам (после миграции 004) ---
+          indexname           |                                              indexdef                                               
+------------------------------+-----------------------------------------------------------------------------------------------------
+ IX_orders_created_at         | CREATE INDEX "IX_orders_created_at" ON public.orders USING btree (created_at DESC)
+ IX_orders_user_id            | CREATE INDEX "IX_orders_user_id" ON public.orders USING btree (user_id)
+ IX_orders_user_id_created_at | CREATE INDEX "IX_orders_user_id_created_at" ON public.orders USING btree (user_id, created_at DESC)
+ PK_orders                    | CREATE UNIQUE INDEX "PK_orders" ON public.orders USING btree (id)
+(4 rows)
+
+--- сколько заказов у выбранных пользователей ---
+      who       | count 
+----------------+-------
+ обычный клиент |    19
+ крупный клиент | 50003
+(2 rows)
+
+CREATE FUNCTION
+
+################################################################
+#  ОБЪЁМ 1: 1 000 000 заказов (baseline, ЗАДАНИЕ 14)
+################################################################
+ANALYZE
+ orders_rows | heap  | indexes 
+-------------+-------+---------
+     1000003 | 85 MB | 108 MB
+(1 row)
+
+--- Query 1: поиск по внешнему ключу (обычный клиент) ---
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on orders  (cost=4.59..86.09 rows=21 width=63) (actual time=0.052..0.089 rows=19 loops=1)
+   Recheck Cond: (user_id = '8f2929ba-cd52-4e24-b592-b6501954b303'::uuid)
+   Heap Blocks: exact=19
+   ->  Bitmap Index Scan on "IX_orders_user_id_created_at"  (cost=0.00..4.58 rows=21 width=0) (actual time=0.045..0.045 rows=19 loops=1)
+         Index Cond: (user_id = '8f2929ba-cd52-4e24-b592-b6501954b303'::uuid)
+ Planning Time: 0.141 ms
+ Execution Time: 1.133 ms
+(7 rows)
+
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on orders  (cost=4.59..86.09 rows=21 width=63) (actual time=0.014..0.072 rows=19 loops=1)
+   Recheck Cond: (user_id = '8f2929ba-cd52-4e24-b592-b6501954b303'::uuid)
+   Heap Blocks: exact=19
+   Buffers: shared hit=22
+   ->  Bitmap Index Scan on "IX_orders_user_id_created_at"  (cost=0.00..4.58 rows=21 width=0) (actual time=0.010..0.011 rows=19 loops=1)
+         Index Cond: (user_id = '8f2929ba-cd52-4e24-b592-b6501954b303'::uuid)
+         Buffers: shared hit=3
+ Planning Time: 0.041 ms
+ Execution Time: 0.115 ms
+(9 rows)
+
+--- Query 2: диапазон дат (последние 7 дней) ---
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on orders  (cost=155.06..10885.46 rows=8081 width=63) (actual time=9.624..25.023 rows=8702 loops=1)
+   Recheck Cond: (created_at >= (now() - '7 days'::interval))
+   Heap Blocks: exact=5997
+   ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..153.04 rows=8081 width=0) (actual time=9.144..9.144 rows=8702 loops=1)
+         Index Cond: (created_at >= (now() - '7 days'::interval))
+ Planning Time: 0.667 ms
+ Execution Time: 25.433 ms
+(7 rows)
+
+                                                              QUERY PLAN                                                               
+---------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on orders  (cost=155.06..10885.46 rows=8081 width=63) (actual time=0.984..8.992 rows=8702 loops=1)
+   Recheck Cond: (created_at >= (now() - '7 days'::interval))
+   Heap Blocks: exact=5997
+   Buffers: shared hit=6023
+   ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..153.04 rows=8081 width=0) (actual time=0.575..0.575 rows=8702 loops=1)
+         Index Cond: (created_at >= (now() - '7 days'::interval))
+         Buffers: shared hit=26
+ Planning:
+   Buffers: shared hit=4
+ Planning Time: 0.101 ms
+ Execution Time: 9.460 ms
+(11 rows)
+
+--- Query 3: фильтр + сортировка + LIMIT (личный кабинет крупного клиента) ---
+                                                                      QUERY PLAN                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..44.21 rows=50 width=63) (actual time=0.662..0.729 rows=50 loops=1)
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.42..45570.19 rows=52033 width=63) (actual time=0.661..0.725 rows=50 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+ Planning Time: 0.103 ms
+ Execution Time: 0.752 ms
+(5 rows)
+
+                                                                      QUERY PLAN                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..44.21 rows=50 width=63) (actual time=0.031..0.102 rows=50 loops=1)
+   Buffers: shared hit=53
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.42..45570.19 rows=52033 width=63) (actual time=0.030..0.098 rows=50 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=53
+ Planning Time: 0.175 ms
+ Execution Time: 0.176 ms
+(7 rows)
+
+--- Query 4: админский отчёт — агрегация по статусам за 30 дней ---
+                                                                   QUERY PLAN                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=12648.97..12649.04 rows=5 width=49) (actual time=68.366..68.368 rows=5 loops=1)
+   Group Key: status
+   Batches: 1  Memory Usage: 24kB
+   ->  Bitmap Heap Scan on orders  (cost=742.30..12352.97 rows=39467 width=15) (actual time=29.934..59.959 rows=40509 loops=1)
+         Recheck Cond: (created_at >= (now() - '30 days'::interval))
+         Heap Blocks: exact=10676
+         ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..732.43 rows=39467 width=0) (actual time=28.195..28.196 rows=40509 loops=1)
+               Index Cond: (created_at >= (now() - '30 days'::interval))
+ Planning Time: 0.318 ms
+ Execution Time: 68.527 ms
+(10 rows)
+
+                                                                  QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=12648.97..12649.04 rows=5 width=49) (actual time=18.462..18.464 rows=5 loops=1)
+   Group Key: status
+   Batches: 1  Memory Usage: 24kB
+   Buffers: shared hit=10789
+   ->  Bitmap Heap Scan on orders  (cost=742.30..12352.97 rows=39467 width=15) (actual time=3.357..14.002 rows=40509 loops=1)
+         Recheck Cond: (created_at >= (now() - '30 days'::interval))
+         Heap Blocks: exact=10676
+         Buffers: shared hit=10789
+         ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..732.43 rows=39467 width=0) (actual time=2.540..2.540 rows=40509 loops=1)
+               Index Cond: (created_at >= (now() - '30 days'::interval))
+               Buffers: shared hit=113
+ Planning Time: 0.219 ms
+ Execution Time: 18.658 ms
+(13 rows)
+
+
+################################################################
+#  ЗАДАНИЕ 15. Наращивание до 3 000 000 заказов
+################################################################
+ grow_orders 
+-------------
+ 
+(1 row)
+
+VACUUM
+ orders_rows |  heap  | indexes 
+-------------+--------+---------
+     3000003 | 256 MB | 370 MB
+(1 row)
+
+--- Query 1 ---
+                                                           QUERY PLAN                                                            
+---------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using "IX_orders_user_id" on orders  (cost=0.43..210.56 rows=81 width=63) (actual time=0.053..0.236 rows=19 loops=1)
+   Index Cond: (user_id = '8f2929ba-cd52-4e24-b592-b6501954b303'::uuid)
+ Planning Time: 0.112 ms
+ Execution Time: 0.246 ms
+(4 rows)
+
+                                                           QUERY PLAN                                                            
+---------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using "IX_orders_user_id" on orders  (cost=0.43..210.56 rows=81 width=63) (actual time=0.010..0.016 rows=19 loops=1)
+   Index Cond: (user_id = '8f2929ba-cd52-4e24-b592-b6501954b303'::uuid)
+   Buffers: shared hit=22
+ Planning Time: 0.145 ms
+ Execution Time: 0.024 ms
+(5 rows)
+
+--- Query 2 ---
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on orders  (cost=629.15..34037.32 rows=27963 width=63) (actual time=3.367..106.488 rows=26035 loops=1)
+   Recheck Cond: (created_at >= (now() - '7 days'::interval))
+   Heap Blocks: exact=17998
+   ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..622.16 rows=27963 width=0) (actual time=2.044..2.045 rows=26035 loops=1)
+         Index Cond: (created_at >= (now() - '7 days'::interval))
+ Planning Time: 0.175 ms
+ Execution Time: 107.287 ms
+(7 rows)
+
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on orders  (cost=629.15..34037.32 rows=27963 width=63) (actual time=4.041..73.218 rows=26035 loops=1)
+   Recheck Cond: (created_at >= (now() - '7 days'::interval))
+   Heap Blocks: exact=17998
+   Buffers: shared hit=651 read=17445 written=4936
+   ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..622.16 rows=27963 width=0) (actual time=2.468..2.468 rows=26035 loops=1)
+         Index Cond: (created_at >= (now() - '7 days'::interval))
+         Buffers: shared hit=3 read=95 written=1
+ Planning:
+   Buffers: shared hit=4
+ Planning Time: 0.076 ms
+ Execution Time: 74.139 ms
+(11 rows)
+
+--- Query 3 ---
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..37.43 rows=50 width=63) (actual time=0.026..0.100 rows=50 loops=1)
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.43..110114.85 rows=148800 width=63) (actual time=0.025..0.098 rows=50 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+ Planning Time: 0.086 ms
+ Execution Time: 0.115 ms
+(5 rows)
+
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..37.43 rows=50 width=63) (actual time=0.018..0.061 rows=50 loops=1)
+   Buffers: shared hit=53
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.43..110114.85 rows=148800 width=63) (actual time=0.018..0.046 rows=50 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=53
+ Planning Time: 0.027 ms
+ Execution Time: 0.070 ms
+(7 rows)
+
+--- Query 4 ---
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=37891.02..37892.35 rows=5 width=49) (actual time=106.155..111.038 rows=5 loops=1)
+   Group Key: status
+   ->  Gather Merge  (cost=37891.02..37892.18 rows=10 width=49) (actual time=106.149..111.029 rows=15 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Sort  (cost=36890.99..36891.00 rows=5 width=49) (actual time=89.265..89.266 rows=5 loops=3)
+               Sort Key: status
+               Sort Method: quicksort  Memory: 25kB
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=36890.87..36890.93 rows=5 width=49) (actual time=89.202..89.205 rows=5 loops=3)
+                     Group Key: status
+                     Batches: 1  Memory Usage: 24kB
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Bitmap Heap Scan on orders  (cost=2819.42..36497.74 rows=52418 width=15) (actual time=7.258..82.454 rows=40559 loops=3)
+                           Recheck Cond: (created_at >= (now() - '30 days'::interval))
+                           Heap Blocks: exact=12559
+                           ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..2787.96 rows=125804 width=0) (actual time=15.140..15.140 rows=121677 loops=1)
+                                 Index Cond: (created_at >= (now() - '30 days'::interval))
+ Planning Time: 0.126 ms
+ Execution Time: 111.232 ms
+(22 rows)
+
+                                                                             QUERY PLAN                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=37891.02..37892.35 rows=5 width=49) (actual time=76.850..81.740 rows=5 loops=1)
+   Group Key: status
+   Buffers: shared hit=16 read=32459
+   ->  Gather Merge  (cost=37891.02..37892.18 rows=10 width=49) (actual time=76.840..81.730 rows=15 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=16 read=32459
+         ->  Sort  (cost=36890.99..36891.00 rows=5 width=49) (actual time=67.356..67.357 rows=5 loops=3)
+               Sort Key: status
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=16 read=32459
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=36890.87..36890.93 rows=5 width=49) (actual time=67.332..67.333 rows=5 loops=3)
+                     Group Key: status
+                     Batches: 1  Memory Usage: 24kB
+                     Buffers: shared read=32459
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Bitmap Heap Scan on orders  (cost=2819.42..36497.74 rows=52418 width=15) (actual time=4.211..61.616 rows=40559 loops=3)
+                           Recheck Cond: (created_at >= (now() - '30 days'::interval))
+                           Heap Blocks: exact=12633
+                           Buffers: shared read=32459
+                           ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..2787.96 rows=125804 width=0) (actual time=8.942..8.942 rows=121677 loops=1)
+                                 Index Cond: (created_at >= (now() - '30 days'::interval))
+                                 Buffers: shared read=445
+ Planning Time: 0.122 ms
+ Execution Time: 81.798 ms
+(28 rows)
+
+
+################################################################
+#  ЗАДАНИЕ 15. Наращивание до 5 000 000 заказов
+################################################################
+ grow_orders 
+-------------
+ 
+(1 row)
+
+VACUUM
+ orders_rows |  heap  | indexes 
+-------------+--------+---------
+     5000003 | 427 MB | 640 MB
+(1 row)
+
+--- Query 1 ---
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using "IX_orders_user_id" on orders  (cost=0.43..459.21 rows=148 width=63) (actual time=0.266..1.906 rows=19 loops=1)
+   Index Cond: (user_id = '8f2929ba-cd52-4e24-b592-b6501954b303'::uuid)
+ Planning Time: 0.175 ms
+ Execution Time: 1.972 ms
+(4 rows)
+
+                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Index Scan using "IX_orders_user_id" on orders  (cost=0.43..459.21 rows=148 width=63) (actual time=0.045..0.059 rows=19 loops=1)
+   Index Cond: (user_id = '8f2929ba-cd52-4e24-b592-b6501954b303'::uuid)
+   Buffers: shared hit=22
+ Planning Time: 0.040 ms
+ Execution Time: 0.076 ms
+(5 rows)
+
+--- Query 2 ---
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on orders  (cost=1158.28..56861.36 rows=46690 width=63) (actual time=12.297..580.376 rows=43678 loops=1)
+   Recheck Cond: (created_at >= (now() - '7 days'::interval))
+   Heap Blocks: exact=30130
+   ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..1146.61 rows=46690 width=0) (actual time=9.521..9.521 rows=43678 loops=1)
+         Index Cond: (created_at >= (now() - '7 days'::interval))
+ Planning Time: 0.240 ms
+ Execution Time: 582.219 ms
+(7 rows)
+
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on orders  (cost=1158.28..56861.36 rows=46690 width=63) (actual time=5.726..77.114 rows=43678 loops=1)
+   Recheck Cond: (created_at >= (now() - '7 days'::interval))
+   Heap Blocks: exact=30130
+   Buffers: shared hit=3 read=30312 written=2
+   ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..1146.61 rows=46690 width=0) (actual time=3.466..3.466 rows=43678 loops=1)
+         Index Cond: (created_at >= (now() - '7 days'::interval))
+         Buffers: shared hit=3 read=182
+ Planning:
+   Buffers: shared hit=1 read=3
+ Planning Time: 0.153 ms
+ Execution Time: 78.068 ms
+(11 rows)
+
+--- Query 3 ---
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..38.91 rows=50 width=63) (actual time=0.158..0.232 rows=50 loops=1)
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.43..200602.77 rows=260662 width=63) (actual time=0.157..0.229 rows=50 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+ Planning Time: 0.050 ms
+ Execution Time: 0.239 ms
+(5 rows)
+
+                                                                       QUERY PLAN                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.43..38.91 rows=50 width=63) (actual time=0.006..0.019 rows=50 loops=1)
+   Buffers: shared hit=53
+   ->  Index Scan using "IX_orders_user_id_created_at" on orders  (cost=0.43..200602.77 rows=260662 width=63) (actual time=0.006..0.017 rows=50 loops=1)
+         Index Cond: (user_id = 'aaaaaaaa-0000-0000-0000-000000000003'::uuid)
+         Buffers: shared hit=53
+ Planning Time: 0.024 ms
+ Execution Time: 0.025 ms
+(7 rows)
+
+--- Query 4 ---
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=62707.34..62708.67 rows=5 width=49) (actual time=230.091..239.141 rows=5 loops=1)
+   Group Key: status
+   ->  Gather Merge  (cost=62707.34..62708.51 rows=10 width=49) (actual time=230.075..239.123 rows=15 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Sort  (cost=61707.32..61707.33 rows=5 width=49) (actual time=219.155..219.156 rows=5 loops=3)
+               Sort Key: status
+               Sort Method: quicksort  Memory: 25kB
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=61707.20..61707.26 rows=5 width=49) (actual time=219.124..219.126 rows=5 loops=3)
+                     Group Key: status
+                     Batches: 1  Memory Usage: 24kB
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Bitmap Heap Scan on orders  (cost=5001.98..61075.93 rows=84169 width=15) (actual time=7.685..209.999 rows=67747 loops=3)
+                           Recheck Cond: (created_at >= (now() - '30 days'::interval))
+                           Heap Blocks: exact=19357
+                           ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..4951.48 rows=202005 width=0) (actual time=13.716..13.716 rows=203241 loops=1)
+                                 Index Cond: (created_at >= (now() - '30 days'::interval))
+ Planning Time: 0.043 ms
+ Execution Time: 239.177 ms
+(22 rows)
+
+                                                                              QUERY PLAN                                                                              
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=62707.34..62708.67 rows=5 width=49) (actual time=159.608..163.163 rows=5 loops=1)
+   Group Key: status
+   Buffers: shared hit=16 read=54239
+   ->  Gather Merge  (cost=62707.34..62708.51 rows=10 width=49) (actual time=159.602..163.154 rows=15 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=16 read=54239
+         ->  Sort  (cost=61707.32..61707.33 rows=5 width=49) (actual time=153.082..153.083 rows=5 loops=3)
+               Sort Key: status
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=16 read=54239
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=61707.20..61707.26 rows=5 width=49) (actual time=153.066..153.067 rows=5 loops=3)
+                     Group Key: status
+                     Batches: 1  Memory Usage: 24kB
+                     Buffers: shared read=54239
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Bitmap Heap Scan on orders  (cost=5001.98..61075.93 rows=84169 width=15) (actual time=8.422..145.502 rows=67747 loops=3)
+                           Recheck Cond: (created_at >= (now() - '30 days'::interval))
+                           Heap Blocks: exact=20191
+                           Buffers: shared read=54239
+                           ->  Bitmap Index Scan on "IX_orders_created_at"  (cost=0.00..4951.48 rows=202005 width=0) (actual time=10.659..10.659 rows=203241 loops=1)
+                                 Index Cond: (created_at >= (now() - '30 days'::interval))
+                                 Buffers: shared read=864
+ Planning Time: 0.068 ms
+ Execution Time: 163.209 ms
+(28 rows)
+
+
+================================================================
+ ЗАДАНИЕ 17. Узкое место: сколько строк обрабатывает каждый запрос
+================================================================
+               query                | rows_processed 
+------------------------------------+----------------
+ Query 1 (user_id обычного клиента) |             19
+ Query 2 (7 дней)                   |          43678
+ Query 3 (крупный клиент, всего)    |         249758
+ Query 4 (30 дней)                  |         203241
+(4 rows)
+
+
+================================================================
+ ЗАДАНИЕ 18. Попытки улучшить самый тяжёлый запрос (Query 4)
+================================================================
+--- 18.1 покрывающий индекс (created_at, status) INCLUDE (total_amount) ---
+CREATE INDEX
+VACUUM
+ covering_index_size 
+---------------------
+ 219 MB
+(1 row)
+
+                                                                                          QUERY PLAN                                                                                          
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=8656.57..8657.90 rows=5 width=49) (actual time=31.437..34.922 rows=5 loops=1)
+   Group Key: status
+   ->  Gather Merge  (cost=8656.57..8657.74 rows=10 width=49) (actual time=31.429..34.911 rows=15 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Sort  (cost=7656.55..7656.56 rows=5 width=49) (actual time=21.223..21.224 rows=5 loops=3)
+               Sort Key: status
+               Sort Method: quicksort  Memory: 25kB
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=7656.43..7656.49 rows=5 width=49) (actual time=21.198..21.200 rows=5 loops=3)
+                     Group Key: status
+                     Batches: 1  Memory Usage: 24kB
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Index Only Scan using "IX_orders_created_at_status_incl" on orders  (cost=0.44..7013.33 rows=85746 width=15) (actual time=0.034..14.490 rows=67747 loops=3)
+                           Index Cond: (created_at >= (now() - '30 days'::interval))
+                           Heap Fetches: 0
+ Planning Time: 0.233 ms
+ Execution Time: 34.994 ms
+(20 rows)
+
+                                                                                         QUERY PLAN                                                                                          
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize GroupAggregate  (cost=8656.57..8657.90 rows=5 width=49) (actual time=23.377..26.362 rows=5 loops=1)
+   Group Key: status
+   Buffers: shared hit=98926
+   ->  Gather Merge  (cost=8656.57..8657.74 rows=10 width=49) (actual time=23.370..26.353 rows=15 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=98926
+         ->  Sort  (cost=7656.55..7656.56 rows=5 width=49) (actual time=15.370..15.370 rows=5 loops=3)
+               Sort Key: status
+               Sort Method: quicksort  Memory: 25kB
+               Buffers: shared hit=98926
+               Worker 0:  Sort Method: quicksort  Memory: 25kB
+               Worker 1:  Sort Method: quicksort  Memory: 25kB
+               ->  Partial HashAggregate  (cost=7656.43..7656.49 rows=5 width=49) (actual time=15.354..15.355 rows=5 loops=3)
+                     Group Key: status
+                     Batches: 1  Memory Usage: 24kB
+                     Buffers: shared hit=98910
+                     Worker 0:  Batches: 1  Memory Usage: 24kB
+                     Worker 1:  Batches: 1  Memory Usage: 24kB
+                     ->  Parallel Index Only Scan using "IX_orders_created_at_status_incl" on orders  (cost=0.44..7013.33 rows=85746 width=15) (actual time=0.033..9.271 rows=67747 loops=3)
+                           Index Cond: (created_at >= (now() - '30 days'::interval))
+                           Heap Fetches: 0
+                           Buffers: shared hit=98910
+ Planning Time: 0.074 ms
+ Execution Time: 26.404 ms
+(25 rows)
+
+--- 18.2 сужаем окно отчёта до 1 дня: тот же запрос, меньше данных ---
+                                                                          QUERY PLAN                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=99.94..100.00 rows=5 width=49) (actual time=0.325..0.326 rows=5 loops=1)
+   Group Key: status
+   Batches: 1  Memory Usage: 24kB
+   Buffers: shared hit=966
+   ->  Index Only Scan using "IX_orders_created_at_status_incl" on orders  (cost=0.44..84.49 rows=2060 width=15) (actual time=0.008..0.144 rows=2070 loops=1)
+         Index Cond: (created_at >= (now() - '1 day'::interval))
+         Heap Fetches: 0
+         Buffers: shared hit=966
+ Planning:
+   Buffers: shared hit=4
+ Planning Time: 0.096 ms
+ Execution Time: 0.341 ms
+(12 rows)
+
+--- 18.3 предагрегированная витрина вместо сырой таблицы ---
+DROP TABLE
+SELECT 3655
+CREATE INDEX
+ANALYZE
+ rows_in_rollup | rollup_size | source_size 
+----------------+-------------+-------------
+           3655 | 392 kB      | 1286 MB
+(1 row)
+
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=41.65..41.72 rows=5 width=73) (actual time=0.067..0.068 rows=5 loops=1)
+   Group Key: status
+   Batches: 1  Memory Usage: 24kB
+   Buffers: shared hit=31 read=2
+   ->  Bitmap Heap Scan on orders_daily_stats  (cost=5.47..40.51 rows=152 width=25) (actual time=0.030..0.048 rows=150 loops=1)
+         Recheck Cond: (day >= ((now() - '30 days'::interval))::date)
+         Heap Blocks: exact=31
+         Buffers: shared hit=31 read=2
+         ->  Bitmap Index Scan on "IX_orders_daily_stats"  (cost=0.00..5.43 rows=152 width=0) (actual time=0.026..0.026 rows=150 loops=1)
+               Index Cond: (day >= ((now() - '30 days'::interval))::date)
+               Buffers: shared read=2
+ Planning:
+   Buffers: shared hit=15 read=3
+ Planning Time: 0.527 ms
+ Execution Time: 0.089 ms
+(15 rows)
+
+--- 18.4 удаляем covering-индекс, если он не окупился ---
+DROP INDEX
+
+================================================================
+ ИТОГ: размеры после роста до 5 млн заказов
+================================================================
+         indexrelname         |  size  | times_used 
+------------------------------+--------+------------
+ IX_orders_user_id_created_at | 244 MB |         14
+ PK_orders                    | 196 MB |    8000040
+ IX_orders_created_at         | 166 MB |         28
+ IX_orders_user_id            | 34 MB  |        123
+(4 rows)
+
+  heap  | all_indexes |  total  
+--------+-------------+---------
+ 427 MB | 640 MB      | 1067 MB
+(1 row)
+
