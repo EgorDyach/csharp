@@ -1,0 +1,25 @@
+==> Роль replicator
+DO
+==> Слот репликации replica_1_slot
+ pg_create_physical_replication_slot 
+-------------------------------------
+(0 rows)
+
+==> Правило в pg_hba.conf
+==> Итог
+         name          | setting 
+-----------------------+---------
+ hot_standby           | on
+ max_replication_slots | 10
+ max_wal_senders       | 10
+ wal_level             | replica
+(4 rows)
+
+   slot_name    | slot_type | active 
+----------------+-----------+--------
+ replica_1_slot | physical  | f
+(1 row)
+
+
+host all all all scram-sha-256
+host replication replicator all scram-sha-256
