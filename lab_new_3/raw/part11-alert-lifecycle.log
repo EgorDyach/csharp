@@ -1,0 +1,121 @@
+### Сценарий B. Жизненный цикл alert'а: CRITICAL -> подавление -> OK
+
+--- 1. Проблема уже известна. Повторная проверка НЕ шлёт уведомление заново
+{
+    "status": "CRITICAL",
+    "checkedAt": "2026-09-11 08:08:04",
+    "actions": [
+        "lab3.events: alert suppressed",
+        "public.orders_partitioned: ok"
+    ]
+}
+
+--- 2. И ещё раз: результат тот же, канал молчит
+{
+    "status": "CRITICAL",
+    "checkedAt": "2026-09-11 08:08:04",
+    "actions": [
+        "lab3.events: alert suppressed",
+        "public.orders_partitioned: ok"
+    ]
+}
+
+--- 3. Состояние alert'а в БД
+              alert_key               |  status  |      details      | first_seen | last_notified | notify_count 
+--------------------------------------+----------+-------------------+------------+---------------+--------------
+ partitions:lab3.events               | Critical | events_2026_09_14 | 08:06:12   | 08:06:12      |            1
+ partitions:public.orders_partitioned | Ok       |                   | 08:08:04   | 08:05:12      |            0
+(2 rows)
+
+--- 4. Восстановление: досоздаём недостающую партицию (CreatePartitionsJob вручную)
+{
+    "existing": 33,
+    "required": 8,
+    "missing": 1,
+    "created": [
+        "events_2026_09_14"
+    ],
+    "errors": [],
+    "elapsedMs": 12.7487
+}
+
+--- 5. Повторная проверка возвращает OK и шлёт recovery
+{
+    "status": "OK",
+    "checkedAt": "2026-09-11 08:08:04",
+    "actions": [
+        "lab3.events: recovery sent",
+        "public.orders_partitioned: ok"
+    ]
+}
+
+--- 6. Health снова зелёный
+{
+    "status": "OK",
+    "checkedAt": "2026-09-11 08:08:04",
+    "tables": [
+        {
+            "table": "lab3.events",
+            "status": "OK",
+            "horizon": 3,
+            "expected": [
+                "events_2026_09_11",
+                "events_2026_09_12",
+                "events_2026_09_13",
+                "events_2026_09_14"
+            ],
+            "missing": []
+        },
+        {
+            "table": "public.orders_partitioned",
+            "status": "OK",
+            "horizon": 3,
+            "expected": [
+                "orders_p_2026_09",
+                "orders_p_2026_10",
+                "orders_p_2026_11",
+                "orders_p_2026_12"
+            ],
+            "missing": []
+        }
+    ]
+}
+
+--- 7. Состояние alert'а после восстановления
+              alert_key               | status | details | notify_count 
+--------------------------------------+--------+---------+--------------
+ partitions:lab3.events               | Ok     |         |            0
+ partitions:public.orders_partitioned | Ok     |         |            0
+(2 rows)
+
+--- 8. Что пришло в канал за весь сценарий
+2026-09-11 08:05:12
+
+========================================
+
+===== ALERT DELIVERED 2026-09-11 08:06:12 =====
+🚨 Partition alert
+
+Table: lab3.events
+Missing partitions:
+events_2026_09_14
+
+Expected horizon: 3 days
+
+Checked at:
+2026-09-11 08:06:12
+
+========================================
+
+===== ALERT DELIVERED 2026-09-11 08:08:04 =====
+🟢 Partition check OK
+
+Table: lab3.events
+
+All required partitions exist.
+Downtime: 1.9 min
+
+Checked at:
+2026-09-11 08:08:04
+
+========================================

@@ -1,0 +1,38 @@
+### Незапланированный инцидент 2026-09-12 (никто его не подстраивал)
+# Сутки сменились -> горизонт сократился с 3 дней до 2 -> партиции events_2026_09_15 нет.
+# Ночная job в 01:00 не отработала. Обнаружила это проверка, а не человек.
+
+--- 1. Обнаружение и первый alert
+--- 2. Подавление повторов в течение ночи
+--- 3. Повторное напоминание через RenotifyAfter = 6 часов
+--- 4. Диагноз: job не запускалась ни разу после старта сервиса
+[10:53:23 INF] Partition job started.
+[10:53:23 INF] Next partition job run at 2026-09-13 01:00:00Z
+
+--- 5. После исправления планировщика: пропущенный запуск навёрстан
+[10:53:23 INF] Partition job started.
+
+Existing partitions: 34
+Required partitions: 8
+Missing partitions: 1
+
+Creating:
+events_2026_09_15  [2026-09-15 .. 2026-09-16)
+
+Partition created successfully.
+
+Partition job finished in 66 ms.
+
+--- 6. Recovery
+===== ALERT DELIVERED 2026-09-12 10:53:38 =====
+🟢 Partition check OK
+
+Table: lab3.events
+
+All required partitions exist.
+Downtime: 648.8 min
+
+Checked at:
+2026-09-12 10:53:38
+
+========================================

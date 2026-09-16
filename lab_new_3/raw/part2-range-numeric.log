@@ -1,0 +1,103 @@
+Timing is on.
+SET
+Time: 0.081 ms
+DROP TABLE
+Time: 6.930 ms
+### 3.1 Таблица, разделённая по ценовым сегментам
+CREATE TABLE
+Time: 2.238 ms
+CREATE TABLE
+Time: 2.556 ms
+CREATE TABLE
+Time: 1.775 ms
+CREATE TABLE
+Time: 1.316 ms
+### 3.2 Товары с разными ценами: куда они попали
+INSERT 0 6
+Time: 0.417 ms
+ id |            name            |  price  |     landed_in      
+----+----------------------------+---------+--------------------
+  1 | Чак-чак мини 100 г         |   99.99 | products_cheap
+  2 | Чак-чак классический 500 г |  100.00 | products_medium
+  3 | Чак-чак подарочный 1 кг    |  999.99 | products_medium
+  4 | Корпоративный набор        | 1000.00 | products_expensive
+  5 | Свадебный чак-чак 10 кг    | 7500.00 | products_expensive
+  6 | Пробник 50 г               |    0.00 | products_cheap
+(6 rows)
+
+Time: 0.859 ms
+### 3.3 Нагрузочные данные: 300 000 товаров
+INSERT 0 299901
+Time: 252.914 ms
+ANALYZE
+Time: 97.434 ms
+   partition_name   | count  |   min   |   max   
+--------------------+--------+---------+---------
+ products_cheap     |   5942 |    0.00 |   99.99
+ products_medium    |  54106 |  100.00 |  999.99
+ products_expensive | 239859 | 1000.00 | 7500.00
+(3 rows)
+
+Time: 19.316 ms
+### 3.4 Задание: SELECT * FROM lab3.products WHERE price >= 100 AND price < 500
+                                                          QUERY PLAN                                                          
+------------------------------------------------------------------------------------------------------------------------------
+ Seq Scan on products_medium products  (cost=0.00..1209.59 rows=24100 width=28) (actual time=0.002..3.222 rows=24069 loops=1)
+   Filter: ((price >= '100'::numeric) AND (price < '500'::numeric))
+   Rows Removed by Filter: 30037
+   Buffers: shared hit=398
+ Planning:
+   Buffers: shared hit=25
+ Planning Time: 0.096 ms
+ Execution Time: 3.667 ms
+(8 rows)
+
+Time: 4.186 ms
+### 3.5 Контрольный опыт: диапазон, пересекающий границу партиций
+                                                              QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Append  (cost=0.00..1466.20 rows=24697 width=28) (actual time=0.003..4.321 rows=24671 loops=1)
+   Buffers: shared hit=442
+   ->  Seq Scan on products_cheap products_1  (cost=0.00..133.13 rows=597 width=28) (actual time=0.003..0.423 rows=602 loops=1)
+         Filter: ((price >= '90'::numeric) AND (price < '500'::numeric))
+         Rows Removed by Filter: 5340
+         Buffers: shared hit=44
+   ->  Seq Scan on products_medium products_2  (cost=0.00..1209.59 rows=24100 width=28) (actual time=0.003..2.991 rows=24069 loops=1)
+         Filter: ((price >= '90'::numeric) AND (price < '500'::numeric))
+         Rows Removed by Filter: 30037
+         Buffers: shared hit=398
+ Planning:
+   Buffers: shared hit=6
+ Planning Time: 0.084 ms
+ Execution Time: 4.830 ms
+(14 rows)
+
+Time: 5.056 ms
+### 3.6 Контрольный опыт: запрос без ключа партиционирования
+                                                                   QUERY PLAN                                                                   
+------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1000.00..5411.51 rows=3 width=28) (actual time=5.102..6.600 rows=1 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=2206
+   ->  Parallel Append  (cost=0.00..4411.21 rows=3 width=28) (actual time=2.769..3.780 rows=0 loops=3)
+         Buffers: shared hit=2206
+         ->  Parallel Seq Scan on products_expensive products_3  (cost=0.00..3527.67 rows=1 width=28) (actual time=2.153..3.164 rows=0 loops=3)
+               Filter: (name = 'product-12345'::text)
+               Rows Removed by Filter: 79953
+               Buffers: shared hit=1764
+         ->  Parallel Seq Scan on products_medium products_2  (cost=0.00..795.84 rows=1 width=28) (actual time=0.823..0.823 rows=0 loops=2)
+               Filter: (name = 'product-12345'::text)
+               Rows Removed by Filter: 27053
+               Buffers: shared hit=398
+         ->  Parallel Seq Scan on products_cheap products_1  (cost=0.00..87.69 rows=1 width=28) (actual time=0.199..0.199 rows=0 loops=1)
+               Filter: (name = 'product-12345'::text)
+               Rows Removed by Filter: 5942
+               Buffers: shared hit=44
+ Planning:
+   Buffers: shared hit=14
+ Planning Time: 0.095 ms
+ Execution Time: 6.611 ms
+(22 rows)
+
+Time: 6.916 ms

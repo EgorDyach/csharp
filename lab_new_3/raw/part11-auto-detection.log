@@ -1,0 +1,72 @@
+### Сценарий A. Автоматическое обнаружение сбоя фоновой проверкой
+
+--- 1. Состояние до аварии
+{
+    "status": "OK",
+    "checkedAt": "2026-09-11 08:05:45",
+    "tables": [
+        {
+            "table": "lab3.events",
+            "status": "OK",
+            "horizon": 3,
+            "expected": [
+                "events_2026_09_11",
+                "events_2026_09_12",
+                "events_2026_09_13",
+                "events_2026_09_14"
+            ],
+            "missing": []
+        },
+        {
+            "table": "public.orders_partitioned",
+            "status": "OK",
+            "horizon": 3,
+            "expected": [
+                "orders_p_2026_09",
+                "orders_p_2026_10",
+                "orders_p_2026_11",
+                "orders_p_2026_12"
+            ],
+            "missing": []
+        }
+    ]
+}
+
+--- 2. Искусственная авария: удаляем будущую партицию events_2026_09_14
+{
+    "dropped": "events_2026_09_14"
+}
+    время аварии: 2026-09-11 08:05:45 UTC
+
+--- 3. Фоновая проверка сама обнаружила проблему (никто её не вызывал)
+[08:06:12 FTL] PARTITION ALERT 🚨 Partition alert: lab3.events
+🚨 Partition alert
+
+Table: lab3.events
+Missing partitions:
+events_2026_09_14
+
+Expected horizon: 3 days
+
+Checked at:
+2026-09-11 08:06:12
+
+[08:06:12 INF] Start processing HTTP request POST http://alert_sink:8099/hook
+[08:06:12 INF] Sending HTTP request POST http://alert_sink:8099/hook
+[08:06:12 INF] Received HTTP response headers after 7.2117ms - 200
+
+--- 4. Уведомление доставлено в канал (лог приёмника alert-sink)
+
+===== ALERT DELIVERED 2026-09-11 08:06:12 =====
+🚨 Partition alert
+
+Table: lab3.events
+Missing partitions:
+events_2026_09_14
+
+Expected horizon: 3 days
+
+Checked at:
+2026-09-11 08:06:12
+
+========================================
