@@ -1,0 +1,119 @@
+==========================================================
+### 6. ОТКАЗ ОДНОГО SHARD
+==========================================================
+Клиент на shard 0: 000275af-58e2-4d65-9f02-ff7033e4051b
+Клиент на shard 2: 0005f1be-fc07-48de-b53a-af45da699702
+
+--- Все три узла живы:
+  GET orders клиента с shard 0 200  опрошено [0], строк=5, 2 мс
+  GET orders клиента с shard 2 200  опрошено [2], строк=5, 8 мс
+  COUNT по всем шардам   200  опрошено [0, 1, 2], полный, total=5000005, 393 мс
+  ORDER BY + LIMIT по всем     200  опрошено [0, 1, 2], полный, 1 мс
+
+--- Гасим shard 2
+chakchakshop_shard0	Up 19 minutes (healthy)
+chakchakshop_shard1	Up 19 minutes (healthy)
+chakchakshop_shard3	Up 19 minutes (healthy)
+
+--- Что работает и что нет:
+  GET orders клиента с shard 0 200  опрошено [0], строк=5, 1 мс
+  GET orders клиента с shard 2 500  {"statusCode":500,"message":"An error occurred while processing your request","details":"57P01: terminating connection d
+  COUNT по всем шардам   200  опрошено [0, 1], УПАЛИ 1, ЧАСТИЧНЫЙ, total=4681885, 128 мс
+  ORDER BY + LIMIT по всем     200  опрошено [0, 1], УПАЛИ 1, ЧАСТИЧНЫЙ, 6 мс
+
+--- Детали частичного ответа COUNT:
+{
+    "total": 4681885,
+    "perShard": [
+        {
+            "shard": 0,
+            "count": 2467541
+        },
+        {
+            "shard": 1,
+            "count": 2214344
+        }
+    ],
+    "shardsQueried": [
+        0,
+        1
+    ],
+    "failedShards": [
+        "shard2: Name or service not known"
+    ],
+    "complete": false,
+    "elapsedMs": 70.495
+}
+
+--- Сколько данных стало недоступно:
+ shard | users | orders  | pct_of_all 
+-------+-------+---------+------------
+     0 | 16700 | 2467541 |      49.35
+     1 | 16550 | 2214344 |      44.29
+     2 | 16754 |  318120 |       6.36
+(3 rows)
+
+
+--- Поднимаем shard 2 обратно
+  COUNT после восстановления 200  опрошено [0, 1, 2], полный, total=5000005, 248 мс
+
+==========================================================
+### 7. HOT SHARD
+==========================================================
+--- Строки уже распределены неравномерно:
+    shard 0:    2467541 заказов, 654 MB
+    shard 1:    2214344 заказов, 583 MB
+    shard 2:     318120 заказов, 200 MB
+
+--- Но дело не только в строках. Одна и та же агрегация на трёх узлах:
+    (три прогона на узел, берём последний — на прогретом кэше)
+    shard 0: Time: 100.993 ms
+    shard 1: Time: 88.454 ms
+    shard 2: Time: 14.658 ms
+
+--- Кто именно делает шард горячим:
+      username       | shard | orders_count | pct_of_all_orders 
+---------------------+-------+--------------+-------------------
+ loadtest_user_46594 |     0 |      1900268 |             38.01
+ loadtest_user_14353 |     1 |      1900019 |             38.00
+ customer            |     0 |       249760 |              5.00
+(3 rows)
+
+
+--- Запрос по одному ключу, который кладёт целый узел:
+    клиент-гигант лежит на shard 0
+                                                                QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Finalize Aggregate  (cost=44780.36..44780.37 rows=1 width=40) (actual time=82.641..83.963 rows=1 loops=1)
+   Buffers: shared hit=1681 read=25295
+   ->  Gather  (cost=44780.13..44780.34 rows=2 width=40) (actual time=82.565..83.955 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=1681 read=25295
+         ->  Partial Aggregate  (cost=43780.13..43780.14 rows=1 width=40) (actual time=81.513..81.513 rows=1 loops=3)
+               Buffers: shared hit=1681 read=25295
+               ->  Parallel Seq Scan on orders  (cost=0.00..39827.78 rows=790470 width=6) (actual time=5.487..52.525 rows=633423 loops=3)
+                     Filter: (user_id = 'bfb455ff-1e92-413b-b5d4-b9e45d752df7'::uuid)
+                     Rows Removed by Filter: 189091
+                     Buffers: shared hit=1681 read=25295
+ Planning:
+   Buffers: shared hit=123
+ Planning Time: 0.341 ms
+ Execution Time: 84.012 ms
+(16 rows)
+
+
+--- Тот же запрос для обычного клиента на том же узле:
+                                                               QUERY PLAN                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=266.32..266.33 rows=1 width=40) (actual time=0.100..0.101 rows=1 loops=1)
+   Buffers: shared hit=33
+   ->  Index Scan using ix_orders_user_created on orders  (cost=0.43..265.91 rows=82 width=6) (actual time=0.029..0.093 rows=30 loops=1)
+         Index Cond: (user_id = '000275af-58e2-4d65-9f02-ff7033e4051b'::uuid)
+         Buffers: shared hit=33
+ Planning:
+   Buffers: shared hit=123
+ Planning Time: 0.276 ms
+ Execution Time: 0.138 ms
+(9 rows)
+
